@@ -1,0 +1,39 @@
+version: "3.8"
+
+# merchant-pay — entirely separate stack (own Mongo, own network).
+# Does NOT connect to, or share volumes/networks with, ssPaymentSolutions.
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: merchant-pay-mongo
+    restart: unless-stopped
+    ports:
+      - "27018:27017" # non-default host port to avoid clashing with Core's Mongo
+    volumes:
+      - merchant_pay_mongo_data:/data/db
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: merchant-pay-api
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      MONGO_URI: mongodb://mongo:27017/merchant_pay
+      API_BASE_URL: http://localhost:4000
+      PAY_PAGE_BASE_URL: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173,http://localhost:5174
+      MERCHANT_JWT_SECRET: ${MERCHANT_JWT_SECRET:-change-me-merchant-secret}
+      PLATFORM_ADMIN_JWT_SECRET: ${PLATFORM_ADMIN_JWT_SECRET:-change-me-platform-admin-secret}
+    env_file:
+      - ./apps/api/.env
+
+volumes:
+  merchant_pay_mongo_data:

@@ -1,0 +1,8 @@
+{
+  "name": "@merchant-pay/shared",
+  "version": "1.0.0",
+  "private": true,
+  "description": "UPI provider list, id helpers, and constants shared across merchant-pay apps.",
+  "main": "src/index.js",
+  "type": "commonjs"
+}

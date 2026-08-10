@@ -1,0 +1,144 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "merchant-pay Developer API",
+    "version": "1.0.0",
+    "description": "Dynamic UPI QR payments with realtime forwarder verification. Authenticate with X-Api-Key / X-Api-Secret."
+  },
+  "servers": [{ "url": "/api/v1" }],
+  "components": {
+    "securitySchemes": {
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Api-Key"
+      },
+      "apiSecretAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Api-Secret"
+      }
+    },
+    "schemas": {
+      "Payment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "pay_abc123" },
+          "merchantOrderRef": { "type": "string", "nullable": true },
+          "amount": { "type": "number", "example": 500 },
+          "currency": { "type": "string", "example": "INR" },
+          "status": { "type": "string", "enum": ["pending", "paid", "expired", "cancelled", "failed"] },
+          "upiAccountId": { "type": "string" },
+          "upiId": { "type": "string", "example": "shop@okaxis" },
+          "upiProvider": { "type": "string", "example": "Google Pay" },
+          "upiIntent": { "type": "string" },
+          "description": {
+            "type": "string",
+            "example": "K3F9QZX7PL",
+            "description": "Random unique reference generated per payment, embedded as the `tn` (note/description) parameter in the UPI QR intent."
+          },
+          "qrPngBase64": { "type": "string" },
+          "payUrl": { "type": "string" },
+          "utr": { "type": "string", "nullable": true },
+          "paidAt": { "type": "string", "nullable": true, "format": "date-time" },
+          "confirmationSource": { "type": "string", "nullable": true },
+          "expiresAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [{ "apiKeyAuth": [], "apiSecretAuth": [] }],
+  "paths": {
+    "/ping": {
+      "get": {
+        "summary": "Auth + connectivity check",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/upi-accounts": {
+      "get": {
+        "summary": "List active UPI accounts for the merchant",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/payments": {
+      "post": {
+        "summary": "Create a payment (dynamic UPI QR)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["amount"],
+                "properties": {
+                  "amount": { "type": "number", "example": 500 },
+                  "merchantOrderRef": { "type": "string", "example": "APP-ORDER-991" },
+                  "upiAccountId": { "type": "string" },
+                  "expiresInSeconds": { "type": "integer", "example": 900 },
+                  "metadata": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Payment" } } }
+          },
+          "409": {
+            "description": "AMOUNT_ALREADY_PENDING",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/payments/{id}": {
+      "get": {
+        "summary": "Get payment status",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/payments/by-ref/{merchantOrderRef}": {
+      "get": {
+        "summary": "Idempotent lookup by merchantOrderRef",
+        "parameters": [{ "name": "merchantOrderRef", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/payments/{id}/cancel": {
+      "post": {
+        "summary": "Cancel a pending payment",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/payments/{id}/events": {
+      "get": {
+        "summary": "SSE stream: pending -> paid / expired",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "text/event-stream" } }
+      }
+    },
+    "/webhooks/test": {
+      "post": {
+        "summary": "Fire a signed sample payment.paid webhook",
+        "responses": { "202": { "description": "Accepted" } }
+      }
+    }
+  }
+}

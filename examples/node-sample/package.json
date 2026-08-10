@@ -1,0 +1,11 @@
+{
+  "name": "merchant-pay-node-sample",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Minimal Node sample: create a payment, poll for status, verify a webhook signature.",
+  "scripts": {
+    "create-payment": "node createPayment.js",
+    "verify-webhook": "node verifyWebhook.js"
+  }
+}

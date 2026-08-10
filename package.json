@@ -1,0 +1,23 @@
+{
+  "name": "merchant-pay",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Standalone developer payment API: dynamic UPI QR, multi-UPI, same-amount pending lock, own forwarder realtime verification, webhooks + SSE. Entirely separate from ssPaymentSolutions.",
+  "workspaces": [
+    "apps/api",
+    "apps/merchant-web",
+    "apps/admin-web",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:merchant": "npm run dev --workspace apps/merchant-web",
+    "dev:admin": "npm run dev --workspace apps/admin-web",
+    "seed": "npm run seed --workspace apps/api",
+    "build:merchant": "npm run build --workspace apps/merchant-web",
+    "build:admin": "npm run build --workspace apps/admin-web"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
