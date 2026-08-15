@@ -17,7 +17,9 @@ app.disable('x-powered-by');
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || env.CORS_ORIGINS.includes(origin)) return callback(null, true);
+      if (!origin || origin === 'null') return callback(null, true);
+      if (env.NODE_ENV === 'development') return callback(null, true);
+      if (env.CORS_ORIGINS.includes(origin)) return callback(null, true);
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,

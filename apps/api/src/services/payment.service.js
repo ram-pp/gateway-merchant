@@ -10,18 +10,7 @@ const { Payment, MerchantUpiAccount } = require('../models');
  * Otherwise auto-select: prefer the account marked isDefault, then fall back
  * to the longest-active account. Merchants are never asked to pick one.
  */
-async function resolveUpiAccount(merchantId, upiAccountId) {
-  if (upiAccountId) {
-    const account = await MerchantUpiAccount.findOne({ publicId: upiAccountId, merchantId });
-    if (!account) {
-      throw ApiError.badRequest(ERROR_CODES.UPI_ACCOUNT_NOT_FOUND, 'upiAccountId not found for this merchant.');
-    }
-    if (!account.isActive) {
-      throw ApiError.badRequest(ERROR_CODES.UPI_ACCOUNT_INACTIVE, 'That UPI account is inactive.');
-    }
-    return account;
-  }
-
+async function resolveUpiAccount(merchantId, amount) {
   const active = await MerchantUpiAccount.find({ merchantId, isActive: true }).sort({
     isDefault: -1,
     createdAt: 1,
@@ -29,7 +18,43 @@ async function resolveUpiAccount(merchantId, upiAccountId) {
   if (active.length === 0) {
     throw ApiError.badRequest(ERROR_CODES.UPI_ACCOUNT_REQUIRED, 'Merchant has no active UPI accounts. Add one first.');
   }
-  return active[0];
+
+  const numericAmount = Number(amount);
+  let effectiveAmount = Number.isFinite(numericAmount) ? numericAmount : null;
+
+  let pendingSet = new Set();
+  if (effectiveAmount && effectiveAmount > 0) {
+    const pending = await Payment.find({ merchantId, amount: effectiveAmount, status: 'pending' }).select('upiAccountId').lean();
+    pendingSet = new Set(pending.map((payment) => String(payment.upiAccountId)));
+  }
+
+  // First, if any account has no pending payment for the exact amount, use it.
+  const freeAccount = active.find((account) => !pendingSet.has(String(account._id)));
+  if (freeAccount) {
+    return { account: freeAccount, amount: effectiveAmount, amountAdjustmentApplied: false, originalAmount: effectiveAmount };
+  }
+
+  // All accounts are occupied for this exact amount. For each account,
+  // attempt up to 10 small increments (0.001, 0.002, ...) on that specific
+  // UPI (checking the (upiAccountId, amount) pending lock). If a free
+  // candidate is found for an account, return it immediately.
+  if (effectiveAmount && effectiveAmount > 0) {
+    const maxAttemptsPerAccount = 10;
+    const step = 0.01;
+    for (const acct of active) {
+      for (let i = 1; i <= maxAttemptsPerAccount; i++) {
+        const candidate = Number((effectiveAmount + step * i).toFixed(3));
+        const collision = await Payment.exists({ merchantId, upiAccountId: acct._id, amount: candidate, status: 'pending' });
+        if (!collision) {
+          return { account: acct, amount: candidate, amountAdjustmentApplied: true, originalAmount: effectiveAmount };
+        }
+      }
+      // attempts exhausted for this acct, move to next acct
+    }
+  }
+
+  // Nothing free found after per-account retries — fall back to default/oldest.
+  return { account: active[0], amount: effectiveAmount, amountAdjustmentApplied: false, originalAmount: effectiveAmount };
 }
 
 function serializePayment(payment, upiAccount) {
@@ -80,7 +105,8 @@ async function createPayment(merchant, input) {
     }
   }
 
-  const account = await resolveUpiAccount(merchant._id, upiAccountId);
+  const { account: selectedAccount, amount: resolvedAmount, amountAdjustmentApplied, originalAmount } =
+    await resolveUpiAccount(merchant._id, amount);
 
   const ttl = Number(expiresInSeconds) > 0 ? Number(expiresInSeconds) : env.DEFAULT_PAYMENT_TTL_SECONDS;
   const expiresAt = new Date(Date.now() + ttl * 1000);
@@ -91,26 +117,31 @@ async function createPayment(merchant, input) {
   // (description) on every QR so each payment's note is unique and traceable.
   const transactionNote = shortCode(10);
   const upiIntent = buildUpiIntent({
-    vpa: account.upiId,
-    payeeName: account.displayName,
-    amount,
+    vpa: selectedAccount.upiId,
+    payeeName: selectedAccount.displayName,
+    amount: resolvedAmount,
     transactionNote,
   });
+
+  const paymentMetadata = {
+    ...(metadata || {}),
+    ...(amountAdjustmentApplied ? { originalAmount: Number(originalAmount), adjustedAmount: resolvedAmount } : {}),
+  };
 
   let payment;
   try {
     payment = await Payment.create({
       publicId,
       merchantId: merchant._id,
-      upiAccountId: account._id,
-      amount,
+      upiAccountId: selectedAccount._id,
+      amount: resolvedAmount,
       currency: 'INR',
       status: 'pending',
       merchantOrderRef: merchantOrderRef || null,
       publicToken,
       transactionNote,
       upiIntent,
-      metadata: metadata || {},
+      metadata: paymentMetadata,
       expiresAt,
       idempotencyKey: idempotencyKey || null,
     });
@@ -119,23 +150,23 @@ async function createPayment(merchant, input) {
       // Same-amount pending lock tripped, or a race on merchantOrderRef/idempotencyKey.
       if (err.keyPattern?.upiAccountId) {
         const pending = await Payment.findOne({
-          upiAccountId: account._id,
-          amount,
+          upiAccountId: selectedAccount._id,
+          amount: resolvedAmount,
           status: 'pending',
         });
         throw ApiError.conflict(
           ERROR_CODES.AMOUNT_ALREADY_PENDING,
-          `A pending payment of ₹${amount} already exists on this UPI account. Cancel it, use a different amount, or another UPI account.`,
+          `A pending payment of ₹${resolvedAmount} already exists on this UPI account. Cancel it, use a different amount, or another UPI account.`,
           { pendingPaymentId: pending?.publicId },
         );
       }
       const existing = await Payment.findOne({ merchantId: merchant._id, merchantOrderRef });
-      if (existing) return { payment: existing, upiAccount: account, isExisting: true };
+      if (existing) return { payment: existing, upiAccount: selectedAccount, isExisting: true };
     }
     throw err;
   }
 
-  return { payment, upiAccount: account, isExisting: false, transactionNote };
+  return { payment, upiAccount: selectedAccount, isExisting: false, transactionNote };
 }
 
 async function buildCreateResponse(payment, upiAccount) {
