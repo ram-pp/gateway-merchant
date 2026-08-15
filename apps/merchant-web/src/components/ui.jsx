@@ -73,6 +73,34 @@ export function ErrorBanner({ message }) {
   return <div className="bg-red-50 text-red-700 text-sm rounded-lg px-3 py-2 border border-red-200">{message}</div>;
 }
 
+export function Toast({ title, message, type = 'error', onClose }) {
+  if (!message) return null;
+
+  const palette = {
+    success: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+    error: 'bg-red-50 border-red-200 text-red-800',
+    info: 'bg-slate-100 border-slate-200 text-slate-800',
+  };
+
+  return (
+    <div className="fixed right-5 top-5 z-50 max-w-sm w-full">
+      <div className={`border rounded-xl shadow-lg p-4 ${palette[type] || palette.info}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            {title && <p className="font-semibold text-sm">{title}</p>}
+            <p className="text-sm mt-1">{message}</p>
+          </div>
+          {onClose && (
+            <button type="button" onClick={onClose} className="text-sm font-medium opacity-70 hover:opacity-100">
+              ×
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function EmptyState({ title, description }) {
   return (
     <div className="text-center py-12 text-slate-500">

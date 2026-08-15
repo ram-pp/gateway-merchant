@@ -10,7 +10,7 @@ const PLATFORM_ADMIN_ROLES = ['superadmin', 'support'];
 
 const CONFIRMATION_SOURCES = ['forwarder', 'manual'];
 
-const WEBHOOK_EVENTS = ['payment.paid', 'payment.expired'];
+const WEBHOOK_EVENTS = ['payment.paid', 'payment.expired', 'payment.failed'];
 
 const ERROR_CODES = {
   VALIDATION_ERROR: 'VALIDATION_ERROR',

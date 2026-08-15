@@ -2,6 +2,36 @@ import { useEffect, useRef, useState } from 'react';
 import { api, sseUrl } from '../api';
 import { Badge, Button, Card, ErrorBanner, Input } from '../components/ui';
 
+function buildAppIntentLinks(payment) {
+  if (!payment?.upiIntent) return [];
+
+  const parsed = new URL(payment.upiIntent.replace(/^upi:/, 'https:'));
+  const params = new URLSearchParams(parsed.search);
+  const pa = params.get('pa');
+  const pn = params.get('pn') || 'Merchant';
+  const am = params.get('am') || '0';
+  const tn = params.get('tn') || '';
+
+  const common = new URLSearchParams({
+    pa,
+    pn,
+    am,
+    cu: 'INR',
+    ...(tn ? { tn } : {}),
+  });
+
+  return [
+    {
+      label: 'Paytm',
+      href: `paytmmp://pay?${common.toString()}`,
+    },
+    {
+      label: 'PhonePe',
+      href: `phonepe://pay?${common.toString()}`,
+    },
+  ];
+}
+
 export default function Pay() {
   const [hasActiveAccount, setHasActiveAccount] = useState(true);
   const [amount, setAmount] = useState('');
@@ -115,6 +145,21 @@ export default function Pay() {
                 alt="UPI QR code"
                 className="mx-auto rounded-lg border border-slate-200 w-56 h-56"
               />
+
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {buildAppIntentLinks(payment).map((app) => (
+                  <a
+                    key={app.label}
+                    href={app.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-300 hover:text-brand-700"
+                  >
+                    {app.label}
+                  </a>
+                ))}
+              </div>
+
               {payment.description && (
                 <p className="text-xs text-slate-400 mt-2">Note: {payment.description}</p>
               )}
