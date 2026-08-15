@@ -24,7 +24,31 @@ function buildAppIntentLinks(payment) {
 
   return [
     { label: 'Paytm', href: `paytmmp://pay?${common.toString()}` },
-    { label: 'PhonePe', href: `phonepe://pay?${common.toString()}` },
+    (function () {
+      try {
+        const payload = {
+          contact: { cbsName: '', nickName: '', vpa: pa, type: 'VPA' },
+          p2pPaymentCheckoutParams: {
+            note: tn || tr || '',
+            isByDefaultKnownContact: true,
+            enableSpeechToText: false,
+            allowAmountEdit: false,
+            checkoutType: 'DEFAULT',
+            transactionContext: 'p2p',
+            initialAmount: Math.round(Number(am || '0') * 100),
+            disableNotesEdit: true,
+            currency: 'INR',
+          },
+        };
+        const json = JSON.stringify(payload);
+        const base64 = typeof window !== 'undefined' && window.btoa
+          ? window.btoa(unescape(encodeURIComponent(json)))
+          : Buffer.from(json).toString('base64');
+        return { label: 'PhonePe', href: `phonepe://native?data=${encodeURIComponent(base64)}&id=p2ppayment` };
+      } catch (e) {
+        return { label: 'PhonePe', href: `phonepe://pay?${common.toString()}` };
+      }
+    })(),
   ];
 }
 
