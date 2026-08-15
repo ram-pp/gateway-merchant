@@ -53,6 +53,12 @@ const cancel = asyncHandler(async (req, res) => {
   payment.status = 'cancelled';
   payment.cancelledAt = new Date();
   await payment.save();
+  // enqueue webhook so merchant systems see the failure
+  const upiAccount = await MerchantUpiAccount.findById(payment.upiAccountId);
+  const serialized = serializePayment(payment, upiAccount);
+  const merchant = await Merchant.findById(req.merchant._id).select('+webhookSecret');
+  await enqueueWebhook({ merchant, event: 'payment.failed', paymentId: payment._id, payload: serialized });
+
   res.json({ ok: true });
 });
 

@@ -52,7 +52,41 @@ export default function Payments() {
                   <td className="px-4 py-2 font-medium">₹{p.amount}</td>
                   <td className="px-4 py-2 text-slate-500">{p.upiId}</td>
                   <td className="px-4 py-2">
-                    <Badge status={p.status} />
+                    <div className="flex items-center gap-2">
+                      <Badge status={p.status} />
+                      {p.status === 'pending' && (
+                        <div className="flex gap-1">
+                          <button
+                            className="text-xs px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded"
+                            onClick={async () => {
+                              try {
+                                await api.post(`/api/merchant/payments/${p.id}/confirm`, {});
+                                window.location.reload();
+                              } catch (err) {
+                                // eslint-disable-next-line no-alert
+                                alert(err.message || 'Could not mark paid');
+                              }
+                            }}
+                          >
+                            Mark paid
+                          </button>
+                          <button
+                            className="text-xs px-2 py-0.5 bg-rose-50 text-rose-700 rounded"
+                            onClick={async () => {
+                              try {
+                                await api.post(`/api/merchant/payments/${p.id}/cancel`);
+                                window.location.reload();
+                              } catch (err) {
+                                // eslint-disable-next-line no-alert
+                                alert(err.message || 'Could not mark failed');
+                              }
+                            }}
+                          >
+                            Mark failed
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-2 text-slate-400">{new Date(p.createdAt).toLocaleString()}</td>
                 </tr>

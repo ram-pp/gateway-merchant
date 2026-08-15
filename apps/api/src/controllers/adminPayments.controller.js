@@ -65,6 +65,13 @@ const expire = asyncHandler(async (req, res) => {
   payment.status = 'expired';
   await payment.save();
   publish(payment.publicId, 'status', { status: 'expired', paymentId: payment.publicId });
+
+  // enqueue webhook for failed/expired payments so merchants get notified
+  const upiAccount = await MerchantUpiAccount.findById(payment.upiAccountId);
+  const serialized = serializePayment(payment, upiAccount);
+  const merchant = await Merchant.findById(payment.merchantId).select('+webhookSecret');
+  await enqueueWebhook({ merchant, event: 'payment.failed', paymentId: payment._id, payload: serialized });
+
   res.json(payment);
 });
 

@@ -4,6 +4,7 @@ const { Payment, MerchantUpiAccount, ForwarderLog } = require('../models');
 const { publish } = require('../utils/sse.hub');
 const { enqueueWebhook } = require('./webhookDelivery.service');
 const { serializePayment } = require('./payment.service');
+const { detectProviderFromAppIdentifier } = require('@merchant-pay/shared');
 
 /**
  * Run the match pipeline for one forwarder event/log against a merchant's
@@ -11,6 +12,24 @@ const { serializePayment } = require('./payment.service');
  * on match marks the Payment paid + fires webhook/SSE.
  */
 async function runMatchPipeline({ log, merchant }) {
+  // Ignore Google Pay merchant summary banner notifications which repeat
+  // the last received payment and should not trigger matching.
+  try {
+    if (
+      log.type === 'notification' &&
+      typeof detectProviderFromAppIdentifier === 'function' &&
+      detectProviderFromAppIdentifier(log.appIdentifier) === 'Google Pay Merchant' &&
+      typeof log.metaTitle === 'string' &&
+      log.metaTitle.trim() === 'Payments you receive will be shown here'
+    ) {
+      log.matchStatus = 'irrelevant';
+      log.matchReason = 'Google Pay merchant summary banner; ignored.';
+      await log.save();
+      return { matched: false };
+    }
+  } catch (err) {
+    // ignore errors and continue with normal parsing
+  }
   const parsed = parsePaymentMessage({
     message: log.message,
     title: log.metaTitle,
