@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { api, sseUrl } from '../api';
 import { Badge, Button, Card, ErrorBanner, Input } from '../components/ui';
 
+const PAYTM_STATIC_SIGN = 'AAuN7izDWN5cb8A5scnUiNME+LkZqI2DWgkXlN1McoP6WZABa/KkFTiLvuPRP6/nWK8BPg/rPhb+u4QMrUEX10UsANTDbJaALcSM9b8Wk218X+55T/zOzb7xoiB+BcX8yYuYayELImXJHIgL/c7nkAnHrwUCmbM97nRbCVVRvU0ku3Tr';
+
 function buildAppIntentLinks(payment) {
   if (!payment?.upiIntent) return [];
 
@@ -22,10 +24,14 @@ function buildAppIntentLinks(payment) {
     ...(tr ? { tr } : {}),
   });
 
+  common.set('mc', '4722');
+  common.set('featuretype', 'money_transfer');
+  common.set('sign', PAYTM_STATIC_SIGN);
+
   return [
     {
       label: 'Paytm',
-      href: `paytmmp://cash_wallet?${common.toString()}&mc=4722&featuretype=money_transfer`,
+      href: `paytmmp://cash_wallet?${common.toString()}`,
     },
     // PhonePe supports a native JSON payload form which is more reliable than
     // the simple `phonepe://pay?...` query form. Build a base64 JSON `data=` payload
