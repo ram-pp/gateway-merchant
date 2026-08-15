@@ -70,6 +70,7 @@ export default function Payments() {
               <tr>
                 <th className="px-4 py-2 font-medium">ID</th>
                 <th className="px-4 py-2 font-medium">Amount</th>
+                <th className="px-4 py-2 font-medium">Message</th>
                 <th className="px-4 py-2 font-medium">UPI</th>
                 <th className="px-4 py-2 font-medium">Status</th>
                 <th className="px-4 py-2 font-medium">Created</th>
@@ -85,6 +86,9 @@ export default function Payments() {
                     {p.merchantOrderRef && <div className="text-xs text-slate-400 mt-1">{p.merchantOrderRef}</div>}
                   </td>
                   <td className="px-4 py-3 font-medium">₹{p.amount}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    <span className="font-medium text-slate-700">{p.description || '—'}</span>
+                  </td>
                   <td className="px-4 py-3 text-slate-500">{p.upiId}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-col gap-2">

@@ -2,6 +2,30 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_URL, sseUrl } from '../api';
 
+function buildAppIntentLinks(payment) {
+  if (!payment?.upiIntent) return [];
+
+  const parsed = new URL(payment.upiIntent.replace(/^upi:/, 'https:'));
+  const params = new URLSearchParams(parsed.search);
+  const pa = params.get('pa');
+  const pn = params.get('pn') || 'Merchant';
+  const am = params.get('am') || '0';
+  const tn = params.get('tn') || '';
+
+  const common = new URLSearchParams({
+    pa,
+    pn,
+    am,
+    cu: 'INR',
+    ...(tn ? { tn } : {}),
+  });
+
+  return [
+    { label: 'Paytm', href: `paytmmp://pay?${common.toString()}` },
+    { label: 'PhonePe', href: `phonepe://pay?${common.toString()}` },
+  ];
+}
+
 export default function PublicPay() {
   const { token } = useParams();
   const [payment, setPayment] = useState(null);
@@ -52,6 +76,21 @@ export default function PublicPay() {
                   alt="Scan to pay"
                   className="mx-auto rounded-lg border border-slate-200 w-56 h-56"
                 />
+
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  {buildAppIntentLinks(payment).map((app) => (
+                    <a
+                      key={app.label}
+                      href={app.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-300 hover:text-brand-700"
+                    >
+                      {app.label}
+                    </a>
+                  ))}
+                </div>
+
                 <a
                   href={payment.upiIntent}
                   className="block mt-4 text-sm font-semibold text-brand-700 hover:underline"
