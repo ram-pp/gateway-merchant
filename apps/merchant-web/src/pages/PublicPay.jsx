@@ -11,6 +11,7 @@ function buildAppIntentLinks(payment) {
   const pn = params.get('pn') || 'Merchant';
   const am = params.get('am') || '0';
   const tn = params.get('tn') || '';
+  const tr = params.get('tr') || '';
 
   const common = new URLSearchParams({
     pa,
@@ -18,6 +19,7 @@ function buildAppIntentLinks(payment) {
     am,
     cu: 'INR',
     ...(tn ? { tn } : {}),
+    ...(tr ? { tr } : {}),
   });
 
   return [

@@ -121,6 +121,8 @@ async function createPayment(merchant, input) {
     payeeName: selectedAccount.displayName,
     amount: resolvedAmount,
     transactionNote,
+    // Use the same value for tr as tn so receivers see the same reference
+    tr: transactionNote,
   });
 
   const paymentMetadata = {
