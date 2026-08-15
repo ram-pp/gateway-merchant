@@ -4,6 +4,7 @@ const ids = require('./ids');
 
 module.exports = {
   ...upiProvider,
+  detectProviderFromAppIdentifier: upiProvider.detectProviderFromAppIdentifier,
   ...constants,
   ...ids,
 };

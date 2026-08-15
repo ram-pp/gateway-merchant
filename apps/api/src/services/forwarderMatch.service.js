@@ -13,6 +13,7 @@ const { serializePayment } = require('./payment.service');
 async function runMatchPipeline({ log, merchant }) {
   const parsed = parsePaymentMessage({
     message: log.message,
+    title: log.metaTitle,
     appIdentifier: log.appIdentifier,
     logType: log.type,
   });

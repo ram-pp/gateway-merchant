@@ -41,10 +41,11 @@ function extractBankName(text) {
 }
 
 /**
- * @param {{ message: string, appIdentifier?: string, logType?: 'sms'|'notification'|string }} input
+ * @param {{ message: string, title?: string, appIdentifier?: string, logType?: 'sms'|'notification'|string }} input
  */
-function parsePaymentMessage({ message, appIdentifier, logType }) {
-  const text = String(message || '');
+function parsePaymentMessage({ message, title, appIdentifier, logType }) {
+  // Consider title and message together; title may contain amount/details
+  const text = `${String(title || '')}\n${String(message || '')}`;
   const empty = {
     isParsed: false,
     isCredit: false,
@@ -75,8 +76,9 @@ function parsePaymentMessage({ message, appIdentifier, logType }) {
   const bankName = extractBankName(text);
 
   const isNotification = logType === 'notification';
+  const { detectProviderFromAppIdentifier } = require('@merchant-pay/shared');
   const appName = isNotification
-    ? appIdentifier || (vpaMatch ? detectUpiProvider(vpaMatch[1]) : null)
+    ? (detectProviderFromAppIdentifier(appIdentifier) || (vpaMatch ? detectUpiProvider(vpaMatch[1]) : null))
     : vpaMatch
       ? detectUpiProvider(vpaMatch[1])
       : null;

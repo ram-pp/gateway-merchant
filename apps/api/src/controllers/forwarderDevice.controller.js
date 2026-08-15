@@ -31,7 +31,7 @@ const register = asyncHandler(async (req, res) => {
 
 /** POST /api/forwarder/event — SMS / UPI-app notification credit event from a paired device. */
 const receiveEvent = asyncHandler(async (req, res) => {
-  const { forwarderToken, appIdentifier, message, type, time } = req.body;
+  const { forwarderToken, appIdentifier, message, type, time, meta } = req.body;
 
   const device = await ForwarderDevice.findOne({ forwarderToken, isActive: true });
   console.log('body', req.body);
@@ -44,12 +44,18 @@ const receiveEvent = asyncHandler(async (req, res) => {
   const merchant = await Merchant.findById(device.merchantId);
   if (!merchant) throw ApiError.unauthorized('Merchant not found for this device.');
 
+  // Store meta.title and meta.sender separately so the parser can
+  // consider title and body independently (some apps put amounts in title).
+  const messageToStore = message || '';
+
   const log = await ForwarderLog.create({
     merchantId: device.merchantId,
     deviceId: device._id,
     type: type || 'sms',
     appIdentifier: appIdentifier || null,
-    message,
+    message: messageToStore,
+    metaTitle: meta?.title || null,
+    metaSender: meta?.sender || null,
     time: time ? new Date(time) : new Date(),
     matchStatus: 'pending_parse',
   });

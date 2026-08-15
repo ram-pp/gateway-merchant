@@ -67,6 +67,18 @@ const HANDLE_MAP = {
   bajaj: 'Bajaj Pay',
 };
 
+/** Map common Android/iOS notification package identifiers to provider labels. */
+const APP_ID_MAP = {
+  'com.google.android.apps.nbu.paisa.merchant': 'Google Pay Merchant',
+  'com.google.android.apps.nbu.paisa.user': 'Google Pay',
+  'com.phonepe.app': 'PhonePe',
+  'net.one97.paytm': 'Paytm',
+  'in.org.npci.upiapp': 'BHIM',
+  'com.paytmapp': 'Paytm',
+  'com.whatsapp': 'WhatsApp Pay',
+  // add more known mappings here as discovered
+};
+
 /**
  * Manual-only options — not tied to a single auto-detectable handle (merchant
  * business profiles on these apps can appear under many handles depending on
@@ -89,6 +101,18 @@ function detectUpiProvider(upiId) {
   const handle = upiId.trim().toLowerCase().split('@')[1];
   if (!handle) return null;
   return HANDLE_MAP[handle] ?? null;
+}
+
+/** Map notification `appIdentifier` (package name) to provider label when possible. */
+function detectProviderFromAppIdentifier(appId) {
+  if (!appId || typeof appId !== 'string') return null;
+  const trimmed = appId.trim();
+  if (APP_ID_MAP[trimmed]) return APP_ID_MAP[trimmed];
+  // fallback: normalize and try to match known provider keys
+  const norm = normalizeProviderKey(trimmed);
+  // try matching against known provider labels
+  const found = UPI_PROVIDER_OPTIONS.find((p) => normalizeProviderKey(p) === norm);
+  return found || null;
 }
 
 /** Normalize app-name spellings (PhonePe / Google Pay / GPay / BHIM variants...) for comparison. */

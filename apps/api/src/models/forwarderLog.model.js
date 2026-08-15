@@ -7,6 +7,8 @@ const forwarderLogSchema = new mongoose.Schema(
     type: { type: String, enum: ['sms', 'notification', 'info'], default: 'sms' },
     appIdentifier: { type: String, default: null },
     message: { type: String, required: true },
+    metaTitle: { type: String, default: null },
+    metaSender: { type: String, default: null },
     time: { type: Date, default: Date.now },
 
     parsedData: {
