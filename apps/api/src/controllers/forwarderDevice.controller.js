@@ -34,6 +34,8 @@ const receiveEvent = asyncHandler(async (req, res) => {
   const { forwarderToken, appIdentifier, message, type, time } = req.body;
 
   const device = await ForwarderDevice.findOne({ forwarderToken, isActive: true });
+  console.log('body', req.body);
+  console.log('device', device);
   if (!device) throw ApiError.unauthorized('Invalid or inactive forwarderToken.');
 
   device.lastEventAt = new Date();
