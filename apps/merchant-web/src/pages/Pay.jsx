@@ -11,7 +11,7 @@ function buildAppIntentLinks(payment) {
   const pn = params.get('pn') || 'Merchant';
   const am = params.get('am') || '0';
   const tn = params.get('tn') || '';
-  const tr = params.get('tr') || '';
+  const tr = params.get('tr') || tn || '';
 
   const common = new URLSearchParams({
     pa,
@@ -25,7 +25,7 @@ function buildAppIntentLinks(payment) {
   return [
     {
       label: 'Paytm',
-      href: `paytmmp://pay?${common.toString()}`,
+      href: `paytmmp://cash_wallet?${common.toString()}&mc=4722&featuretype=money_transfer`,
     },
     // PhonePe supports a native JSON payload form which is more reliable than
     // the simple `phonepe://pay?...` query form. Build a base64 JSON `data=` payload
