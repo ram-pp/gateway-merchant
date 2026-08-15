@@ -76,9 +76,10 @@ function parsePaymentMessage({ message, title, appIdentifier, logType }) {
   const bankName = extractBankName(text);
 
   const isNotification = logType === 'notification';
-  const { detectProviderFromAppIdentifier } = require('@merchant-pay/shared');
+  const shared = require('@merchant-pay/shared');
+  const detectProviderFromAppIdentifier = typeof shared.detectProviderFromAppIdentifier === 'function' ? shared.detectProviderFromAppIdentifier : null;
   const appName = isNotification
-    ? (detectProviderFromAppIdentifier(appIdentifier) || (vpaMatch ? detectUpiProvider(vpaMatch[1]) : null))
+    ? ((detectProviderFromAppIdentifier && detectProviderFromAppIdentifier(appIdentifier)) || (vpaMatch ? detectUpiProvider(vpaMatch[1]) : null))
     : vpaMatch
       ? detectUpiProvider(vpaMatch[1])
       : null;
