@@ -32,6 +32,19 @@ const DEFAULT_PAY_PAGE_THEME = {
     buttonText: 'Pay now',
     noteLabel: 'Note',
   },
+  appButtons: {
+    showPaytm: true,
+    showPhonePe: true,
+    paytmLabel: 'Paytm',
+    phonepeLabel: 'PhonePe',
+    paytmBackground: '#1d4ed8',
+    paytmTextColor: '#ffffff',
+    paytmBorderColor: '#1d4ed8',
+    phonepeBackground: '#6d28d9',
+    phonepeTextColor: '#ffffff',
+    phonepeBorderColor: '#6d28d9',
+    style: 'card',
+  },
 };
 
 const normalizePayPageTheme = (theme = {}) => ({
@@ -40,6 +53,11 @@ const normalizePayPageTheme = (theme = {}) => ({
     ...DEFAULT_PAY_PAGE_THEME.brand,
     ...(theme.brand || {}),
   },
+  appButtons: {
+    ...DEFAULT_PAY_PAGE_THEME.appButtons,
+    ...(theme.appButtons || {}),
+  },
+
   layout: {
     ...DEFAULT_PAY_PAGE_THEME.layout,
     ...(theme.layout || {}),
@@ -239,17 +257,89 @@ export default function Settings() {
             onChange={(e) => updateThemeField('copy.subtitle', e.target.value)}
           />
           <Input
-            label="Button text"
-            value={form.payPageTheme.copy.buttonText}
-            onChange={(e) => updateThemeField('copy.buttonText', e.target.value)}
-          />
-          <Input
             label="Note label"
             value={form.payPageTheme.copy.noteLabel}
             onChange={(e) => updateThemeField('copy.noteLabel', e.target.value)}
           />
         </div>
 
+        <div className="mt-5 space-y-4 border-t border-slate-200 pt-4">
+          <h3 className="text-sm font-semibold text-slate-700">App intent buttons</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm text-slate-700">
+              Paytm background
+              <input
+                type="color"
+                value={form.payPageTheme.appButtons.paytmBackground}
+                onChange={(e) => updateThemeField('appButtons.paytmBackground', e.target.value)}
+                className="h-10 w-full rounded-md border border-slate-200 bg-white p-1"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-slate-700">
+              Paytm text
+              <input
+                type="color"
+                value={form.payPageTheme.appButtons.paytmTextColor}
+                onChange={(e) => updateThemeField('appButtons.paytmTextColor', e.target.value)}
+                className="h-10 w-full rounded-md border border-slate-200 bg-white p-1"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-slate-700">
+              PhonePe background
+              <input
+                type="color"
+                value={form.payPageTheme.appButtons.phonepeBackground}
+                onChange={(e) => updateThemeField('appButtons.phonepeBackground', e.target.value)}
+                className="h-10 w-full rounded-md border border-slate-200 bg-white p-1"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-slate-700">
+              PhonePe text
+              <input
+                type="color"
+                value={form.payPageTheme.appButtons.phonepeTextColor}
+                onChange={(e) => updateThemeField('appButtons.phonepeTextColor', e.target.value)}
+                className="h-10 w-full rounded-md border border-slate-200 bg-white p-1"
+              />
+            </label>
+          </div>
+
+          <Input
+            label="Paytm button label"
+            value={form.payPageTheme.appButtons.paytmLabel}
+            onChange={(e) => updateThemeField('appButtons.paytmLabel', e.target.value)}
+          />
+          <Input
+            label="PhonePe button label"
+            value={form.payPageTheme.appButtons.phonepeLabel}
+            onChange={(e) => updateThemeField('appButtons.phonepeLabel', e.target.value)}
+          />
+
+          <div className="mt-3">
+            <label className="block text-sm text-slate-700 mb-2">Button style</label>
+            <div className="flex gap-3 items-center">
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="appButtonStyle"
+                  checked={form.payPageTheme.appButtons.style === 'card'}
+                  onChange={() => updateThemeField('appButtons.style', 'card')}
+                />
+                Card
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="appButtonStyle"
+                  checked={form.payPageTheme.appButtons.style === 'pill'}
+                  onChange={() => updateThemeField('appButtons.style', 'pill')}
+                />
+                Pill
+              </label>
+            </div>
+          </div>
+        </div>
+        
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <label className="flex items-center gap-2 text-sm text-slate-700">
             <input
@@ -300,6 +390,12 @@ export default function Settings() {
             Show powered by label
           </label>
         </div>
+
+        <div className="mt-5 border-t border-slate-200 pt-4">
+          <Button type="button" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save pay page branding'}
+          </Button>
+        </div>
       </Card>
 
       <Card>
@@ -309,3 +405,4 @@ export default function Settings() {
     </div>
   );
 }
+

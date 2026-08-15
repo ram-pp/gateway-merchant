@@ -20,6 +20,18 @@ const DEFAULT_PAY_PAGE_THEME = {
     successColor: '#16a34a',
     borderColor: '#e2e8f0',
   },
+  appButtons: {
+    showPaytm: true,
+    showPhonePe: true,
+    paytmLabel: 'Paytm',
+    phonepeLabel: 'PhonePe',
+    paytmBackground: '#1d4ed8',
+    paytmTextColor: '#ffffff',
+    paytmBorderColor: '#1d4ed8',
+    phonepeBackground: '#6d28d9',
+    phonepeTextColor: '#ffffff',
+    phonepeBorderColor: '#6d28d9',
+  },
   layout: {
     showMerchantName: true,
     showAmount: true,
@@ -54,6 +66,10 @@ const getByPublicToken = asyncHandler(async (req, res) => {
     brand: {
       ...DEFAULT_PAY_PAGE_THEME.brand,
       ...((merchant?.settings?.payPageTheme?.brand) || {}),
+    },
+    appButtons: {
+      ...DEFAULT_PAY_PAGE_THEME.appButtons,
+      ...((merchant?.settings?.payPageTheme?.appButtons) || {}),
     },
     layout: {
       ...DEFAULT_PAY_PAGE_THEME.layout,

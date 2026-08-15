@@ -19,6 +19,18 @@ const DEFAULT_PAY_PAGE_THEME = {
     successColor: '#16a34a',
     borderColor: '#e2e8f0',
   },
+  appButtons: {
+    showPaytm: true,
+    showPhonePe: true,
+    paytmLabel: 'Paytm',
+    phonepeLabel: 'PhonePe',
+    paytmBackground: '#1d4ed8',
+    paytmTextColor: '#ffffff',
+    paytmBorderColor: '#1d4ed8',
+    phonepeBackground: '#6d28d9',
+    phonepeTextColor: '#ffffff',
+    phonepeBorderColor: '#6d28d9',
+  },
   layout: {
     showMerchantName: true,
     showAmount: true,
@@ -42,6 +54,10 @@ function resolvePayPageTheme(theme = {}) {
     brand: {
       ...DEFAULT_PAY_PAGE_THEME.brand,
       ...(theme.brand || {}),
+    },
+    appButtons: {
+      ...DEFAULT_PAY_PAGE_THEME.appButtons,
+      ...(theme.appButtons || {}),
     },
     layout: {
       ...DEFAULT_PAY_PAGE_THEME.layout,
@@ -207,49 +223,44 @@ export default function PublicPay() {
                   />
                 )}
 
-                {buildAppIntentLinks(payment).length > 0 && (
-                  <div className="mt-4 flex flex-wrap justify-center gap-2">
-                    {buildAppIntentLinks(payment).map((app) => (
-                      <a
-                        key={app.label}
-                        href={app.href}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center justify-center rounded-full border px-3 py-1.5 text-xs font-medium"
-                        style={{
-                          borderColor: theme.brand.borderColor,
-                          color: theme.brand.primaryText,
-                          background: theme.brand.cardBackground,
-                        }}
-                      >
-                        {app.label}
-                      </a>
-                    ))}
-                  </div>
-                )}
-
                 {theme.layout.showPayButtons && (
                   <div className="mt-4 space-y-2">
-                    <a
-                      href={payment.upiIntent}
-                      className="block rounded-xl px-4 py-3 text-sm font-semibold"
-                      style={{
-                        background: theme.brand.buttonColor,
-                        color: theme.brand.buttonText,
-                      }}
-                    >
-                      {theme.copy.buttonText}
-                    </a>
-                    <a
-                      href={payment.upiIntent}
-                      className="block rounded-xl border px-4 py-3 text-sm font-semibold"
-                      style={{
-                        borderColor: theme.brand.borderColor,
-                        color: theme.brand.primaryText,
-                      }}
-                    >
-                      Open in app
-                    </a>
+                        {theme.appButtons.showPaytm && (
+                          <a
+                            href={buildAppIntentLinks(payment).find((app) => app.label === 'Paytm')?.href || payment.upiIntent}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`block px-4 py-3 text-sm font-semibold ${theme.appButtons.style === 'pill' ? 'rounded-full' : 'rounded-xl'}`}
+                            style={{
+                              background: theme.appButtons.paytmBackground,
+                              color: theme.appButtons.paytmTextColor,
+                              border: `1px solid ${theme.appButtons.paytmBorderColor}`,
+                              display: 'inline-block',
+                              minWidth: 160,
+                              textAlign: 'center',
+                            }}
+                          >
+                            {theme.appButtons.paytmLabel}
+                          </a>
+                        )}
+                        {theme.appButtons.showPhonePe && (
+                          <a
+                            href={buildAppIntentLinks(payment).find((app) => app.label === 'PhonePe')?.href || payment.upiIntent}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`block px-4 py-3 text-sm font-semibold ${theme.appButtons.style === 'pill' ? 'rounded-full' : 'rounded-xl'}`}
+                            style={{
+                              background: theme.appButtons.phonepeBackground,
+                              color: theme.appButtons.phonepeTextColor,
+                              border: `1px solid ${theme.appButtons.phonepeBorderColor}`,
+                              display: 'inline-block',
+                              minWidth: 160,
+                              textAlign: 'center',
+                            }}
+                          >
+                            {theme.appButtons.phonepeLabel}
+                          </a>
+                        )}
                   </div>
                 )}
 
