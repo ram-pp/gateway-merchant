@@ -72,7 +72,10 @@ const confirm = asyncHandler(async (req, res) => {
 
   payment.status = 'paid';
   payment.paidAt = new Date();
-  payment.utr = req.body.utr;
+  // Only set utr if provided (dashboard may mark paid without supplying a UTR)
+  if (typeof req.body.utr !== 'undefined' && req.body.utr !== '') {
+    payment.utr = req.body.utr;
+  }
   payment.confirmationSource = 'manual';
   await payment.save();
 

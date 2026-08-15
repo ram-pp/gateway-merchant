@@ -5,6 +5,37 @@ const { serializePayment } = require('../services/payment.service');
 const { buildQrPngBase64 } = require('../utils/qr.util');
 const { subscribe } = require('../utils/sse.hub');
 
+const DEFAULT_PAY_PAGE_THEME = {
+  mode: 'light',
+  brand: {
+    merchantName: 'Merchant',
+    logoUrl: '',
+    accentColor: '#2563eb',
+    primaryText: '#0f172a',
+    secondaryText: '#475569',
+    background: '#f8fafc',
+    cardBackground: '#ffffff',
+    buttonColor: '#2563eb',
+    buttonText: '#ffffff',
+    successColor: '#16a34a',
+    borderColor: '#e2e8f0',
+  },
+  layout: {
+    showMerchantName: true,
+    showAmount: true,
+    showNote: true,
+    showQr: true,
+    showPayButtons: true,
+    showPoweredBy: false,
+  },
+  copy: {
+    title: 'Pay now',
+    subtitle: 'Secure payment',
+    buttonText: 'Pay now',
+    noteLabel: 'Note',
+  },
+};
+
 /** GET /api/public/pay/:publicToken — unauthenticated, unguessable-token status + QR for hosted pay page. */
 const getByPublicToken = asyncHandler(async (req, res) => {
   const payment = await Payment.findOne({ publicToken: req.params.publicToken });
@@ -17,10 +48,28 @@ const getByPublicToken = asyncHandler(async (req, res) => {
 
   const qrPngBase64 = payment.status === 'pending' ? await buildQrPngBase64(payment.upiIntent) : null;
 
+  const theme = {
+    ...DEFAULT_PAY_PAGE_THEME,
+    ...((merchant?.settings?.payPageTheme) || {}),
+    brand: {
+      ...DEFAULT_PAY_PAGE_THEME.brand,
+      ...((merchant?.settings?.payPageTheme?.brand) || {}),
+    },
+    layout: {
+      ...DEFAULT_PAY_PAGE_THEME.layout,
+      ...((merchant?.settings?.payPageTheme?.layout) || {}),
+    },
+    copy: {
+      ...DEFAULT_PAY_PAGE_THEME.copy,
+      ...((merchant?.settings?.payPageTheme?.copy) || {}),
+    },
+  };
+
   res.json({
     ...serializePayment(payment, upiAccount),
     qrPngBase64,
-    merchantName: merchant?.name,
+    merchantName: merchant?.name || theme.brand.merchantName,
+    payPageTheme: theme,
     successRedirectUrl: merchant?.settings?.successRedirectUrl || null,
   });
 });

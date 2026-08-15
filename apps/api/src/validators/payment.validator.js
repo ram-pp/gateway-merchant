@@ -16,7 +16,9 @@ const listPaymentsQuerySchema = Joi.object({
 });
 
 const confirmPaymentSchema = Joi.object({
-  utr: Joi.string().trim().min(4).max(30).required(),
+  // UTR may not always be known when manually marking paid from the dashboard,
+  // allow it to be omitted or an empty string.
+  utr: Joi.string().trim().min(4).max(30).optional().allow(''),
 });
 
 module.exports = { createPaymentSchema, listPaymentsQuerySchema, confirmPaymentSchema };
