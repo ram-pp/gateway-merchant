@@ -11,6 +11,10 @@ const forwarderEventSchema = Joi.object({
   appIdentifier: Joi.string().trim().allow(null, '').optional(),
   message: Joi.string().trim().min(1).required(),
   type: Joi.string().valid('sms', 'notification', 'info').default('sms'),
+  meta: Joi.object({
+    title: Joi.string().trim().allow(null, '').optional(),
+    sender: Joi.string().trim().allow(null, '').optional(),
+  }).optional(),
   time: Joi.date().optional(),
 });
 
