@@ -35,6 +35,7 @@ async function runMatchPipeline({ log, merchant }) {
     title: log.metaTitle,
     appIdentifier: log.appIdentifier,
     logType: log.type,
+    eventTime: log.time,
   });
 
   log.parsedData = {
@@ -47,6 +48,7 @@ async function runMatchPipeline({ log, merchant }) {
     accountLast4: parsed.accountLast4,
     appName: parsed.appName,
     confidence: parsed.confidence,
+    messageTime: parsed.messageTime,
   };
 
   if (!parsed.isParsed || !parsed.isCredit) {

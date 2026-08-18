@@ -21,6 +21,7 @@ const forwarderLogSchema = new mongoose.Schema(
       accountLast4: { type: String, default: null },
       appName: { type: String, default: null },
       confidence: { type: String, default: 'none' },
+      messageTime: { type: Date, default: null },
     },
 
     matchStatus: {

@@ -9,10 +9,10 @@
 
 const { providersMatch } = require('@merchant-pay/shared');
 
-const AMOUNT_TOLERANCE = 0.01;
-
+// Exact rupees-and-paise equality, compared in integer paise to sidestep
+// binary float representation error (e.g. 19.99 - 19.98 !== 0.01 exactly).
 function amountsMatch(a, b) {
-  return Math.abs(Number(a) - Number(b)) <= AMOUNT_TOLERANCE;
+  return Math.round(Number(a) * 100) === Math.round(Number(b) * 100);
 }
 
 function normBank(name) {
@@ -37,7 +37,21 @@ function matchForwarderEvent(parsed, candidatePayments, opts = {}) {
   if (!parsed?.isParsed || !parsed.isCredit) return noMatch;
   if (!Array.isArray(candidatePayments) || candidatePayments.length === 0) return noMatch;
 
-  const amountHits = candidatePayments.filter((p) => amountsMatch(p.amount, parsed.amount));
+  // If the message/notification text itself carries a date/time (e.g. "...on
+  // 15-08-26 at 14:32:11"), that's when the underlying transaction happened —
+  // a pay link created after that instant couldn't be the one it refers to.
+  let pool = candidatePayments;
+  if (parsed.messageTime instanceof Date && !Number.isNaN(parsed.messageTime.getTime())) {
+    pool = pool.filter((p) => new Date(p.createdAt).getTime() <= parsed.messageTime.getTime());
+    if (!pool.length) {
+      return {
+        ...noMatch,
+        reason: `Message timestamp ${parsed.messageTime.toISOString()} predates every pending payment — none of them could be the one referenced.`,
+      };
+    }
+  }
+
+  const amountHits = pool.filter((p) => amountsMatch(p.amount, parsed.amount));
   if (!amountHits.length) return noMatch;
 
   const isNotification = opts.logType === 'notification' || parsed.isUpiApp;
@@ -119,4 +133,4 @@ function matchForwarderEvent(parsed, candidatePayments, opts = {}) {
   };
 }
 
-module.exports = { matchForwarderEvent, amountsMatch, AMOUNT_TOLERANCE };
+module.exports = { matchForwarderEvent, amountsMatch };
