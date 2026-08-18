@@ -7,7 +7,7 @@ const { runMatchPipeline } = require('../services/forwarderMatch.service');
 /** POST /api/forwarder/register — forwarder app exchanges a pairing token for a persistent forwarderToken. */
 const register = asyncHandler(async (req, res) => {
   const { pairingToken, label } = req.body;
-
+  console.log('body',req.body)
   const pairing = await ForwarderPairingToken.findOne({ token: pairingToken });
   if (!pairing) {
     throw ApiError.notFound('PAIRING_TOKEN_INVALID', 'Invalid or expired pairing token. Generate a new one from the merchant panel.');
