@@ -112,4 +112,16 @@ const streamByPublicToken = asyncHandler(async (req, res) => {
   req.on('close', () => clearInterval(keepAlive));
 });
 
-module.exports = { getByPublicToken, streamByPublicToken };
+/**
+ * POST /api/public/webhook-echo — debug sink that just logs whatever is
+ * posted to it. Point a merchant's webhookUrl here locally to inspect
+ * outgoing webhook deliveries (headers + body) without standing up a
+ * real receiver.
+ */
+const webhookEcho = asyncHandler(async (req, res) => {
+  console.log('[webhook-echo] headers:', req.headers);
+  console.log('[webhook-echo] body:', JSON.stringify(req.body, null, 2));
+  res.status(200).json({ ok: true });
+});
+
+module.exports = { getByPublicToken, streamByPublicToken, webhookEcho };
