@@ -18,6 +18,7 @@ const paymentSchema = new mongoose.Schema(
 
     merchantOrderRef: { type: String, default: null },
     publicToken: { type: String, required: true, unique: true, index: true },
+    customerMobile: { type: String, default: null },
 
     transactionNote: { type: String },
     upiIntent: { type: String, required: true },

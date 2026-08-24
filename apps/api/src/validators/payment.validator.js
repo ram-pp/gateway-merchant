@@ -3,6 +3,7 @@ const Joi = require('joi');
 const createPaymentSchema = Joi.object({
   amount: Joi.number().positive().precision(2).required(),
   merchantOrderRef: Joi.string().trim().max(140).optional(),
+  customerMobile: Joi.string().trim().max(20).optional().allow(''),
   upiAccountId: Joi.string().trim().optional(),
   expiresInSeconds: Joi.number().integer().min(60).max(86400).optional(),
   metadata: Joi.object().unknown(true).optional(),

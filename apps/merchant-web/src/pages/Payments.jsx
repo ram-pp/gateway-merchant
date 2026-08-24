@@ -68,52 +68,59 @@ export default function Payments() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-left">
               <tr>
-                <th className="px-4 py-2 font-medium">ID</th>
+                <th className="px-4 py-2 font-medium">Order ID</th>
+                <th className="px-4 py-2 font-medium">Date</th>
+                <th className="px-4 py-2 font-medium">Customer Mobile</th>
+                <th className="px-4 py-2 font-medium">Transaction Id</th>
+                <th className="px-4 py-2 font-medium">UTR Number</th>
                 <th className="px-4 py-2 font-medium">Amount</th>
-                <th className="px-4 py-2 font-medium">Message</th>
-                <th className="px-4 py-2 font-medium">UPI</th>
-                <th className="px-4 py-2 font-medium">Status</th>
-                <th className="px-4 py-2 font-medium">Created</th>
+                <th className="px-4 py-2 font-medium">Payment Status</th>
+                <th className="px-4 py-2 font-medium">View</th>
+                <th className="px-4 py-2 font-medium">Action</th>
               </tr>
             </thead>
             <tbody>
               {data.data.map((p) => (
                 <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50 align-top">
                   <td className="px-4 py-3">
-                    <Link to={`/payments/${p.id}`} className="text-brand-700 font-medium hover:underline">
-                      {p.id}
-                    </Link>
+                    <span className="font-medium text-slate-700">{p.id}</span>
                     {p.merchantOrderRef && <div className="text-xs text-slate-400 mt-1">{p.merchantOrderRef}</div>}
                   </td>
-                  <td className="px-4 py-3 font-medium">₹{p.amount}</td>
-                  <td className="px-4 py-3 text-slate-600">
-                    <span className="font-medium text-slate-700">{p.description || '—'}</span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">{p.upiId}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-2">
-                      <Badge status={p.status} />
-                      {p.status === 'pending' && (
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            variant="primary"
-                            className="text-xs px-3 py-1.5 !rounded-full bg-emerald-600 hover:bg-emerald-700"
-                            onClick={() => handleMarkPaid(p.id)}
-                          >
-                            Success
-                          </Button>
-                          <Button
-                            variant="danger"
-                            className="text-xs px-3 py-1.5 !rounded-full bg-rose-100 text-rose-700 hover:bg-rose-200"
-                            onClick={() => handleMarkFailed(p.id)}
-                          >
-                            Failed
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
                   <td className="px-4 py-3 text-slate-400">{new Date(p.createdAt).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-slate-500">{p.customerMobile || '—'}</td>
+                  <td className="px-4 py-3 text-slate-500">{p.transactionId || '—'}</td>
+                  <td className="px-4 py-3 text-slate-500">{p.utr || '—'}</td>
+                  <td className="px-4 py-3 font-medium">₹{p.amount}</td>
+                  <td className="px-4 py-3">
+                    <Badge status={p.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link to={`/payments/${p.id}`} className="text-brand-700 font-medium hover:underline">
+                      View
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    {p.status === 'pending' ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="primary"
+                          className="text-xs px-3 py-1.5 !rounded-full bg-emerald-600 hover:bg-emerald-700"
+                          onClick={() => handleMarkPaid(p.id)}
+                        >
+                          Success
+                        </Button>
+                        <Button
+                          variant="danger"
+                          className="text-xs px-3 py-1.5 !rounded-full bg-rose-100 text-rose-700 hover:bg-rose-200"
+                          onClick={() => handleMarkFailed(p.id)}
+                        >
+                          Failed
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

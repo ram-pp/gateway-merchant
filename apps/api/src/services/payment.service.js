@@ -61,6 +61,8 @@ function serializePayment(payment, upiAccount) {
   return {
     id: payment.publicId,
     merchantOrderRef: payment.merchantOrderRef,
+    customerMobile: payment.customerMobile || null,
+    transactionId: payment.transactionNote,
     amount: payment.amount,
     currency: payment.currency,
     status: payment.status,
@@ -87,7 +89,7 @@ function serializePayment(payment, upiAccount) {
  * an optional Idempotency-Key header.
  */
 async function createPayment(merchant, input) {
-  const { amount, merchantOrderRef, upiAccountId, expiresInSeconds, metadata, idempotencyKey } = input;
+  const { amount, merchantOrderRef, customerMobile, upiAccountId, expiresInSeconds, metadata, idempotencyKey } = input;
 
   if (merchantOrderRef) {
     const existing = await Payment.findOne({ merchantId: merchant._id, merchantOrderRef });
@@ -140,6 +142,7 @@ async function createPayment(merchant, input) {
       currency: 'INR',
       status: 'pending',
       merchantOrderRef: merchantOrderRef || null,
+      customerMobile: customerMobile || null,
       publicToken,
       transactionNote,
       upiIntent,

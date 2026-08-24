@@ -68,6 +68,7 @@ export default function Pay() {
   const [hasActiveAccount, setHasActiveAccount] = useState(true);
   const [amount, setAmount] = useState('');
   const [orderRef, setOrderRef] = useState('');
+  const [customerMobile, setCustomerMobile] = useState('');
   const [payment, setPayment] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -100,6 +101,7 @@ export default function Pay() {
       const data = await api.post('/api/merchant/payments', {
         amount: Number(amount),
         merchantOrderRef: orderRef || undefined,
+        customerMobile: customerMobile || undefined,
       });
       setPayment(data);
     } catch (err) {
@@ -123,6 +125,7 @@ export default function Pay() {
     setPayment(null);
     setAmount('');
     setOrderRef('');
+    setCustomerMobile('');
     setError('');
   };
 
@@ -148,6 +151,13 @@ export default function Pay() {
               value={orderRef}
               onChange={(e) => setOrderRef(e.target.value)}
               placeholder="BILL-1042"
+            />
+            <Input
+              label="Customer mobile (optional)"
+              type="tel"
+              value={customerMobile}
+              onChange={(e) => setCustomerMobile(e.target.value)}
+              placeholder="9876543210"
             />
             {!hasActiveAccount && (
               <p className="text-sm text-amber-600">
