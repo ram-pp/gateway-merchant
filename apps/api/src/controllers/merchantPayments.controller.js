@@ -44,10 +44,15 @@ const getOne = asyncHandler(async (req, res) => {
   res.json(serializePayment(payment, upiAccount));
 });
 
+// Payments the merchant can still manually settle from the dashboard even
+// though the payer can no longer act on them (e.g. the QR expired but the
+// merchant confirms money actually arrived, or wants to formally close it out).
+const MANUALLY_SETTLEABLE_STATUSES = ['pending', 'expired'];
+
 const cancel = asyncHandler(async (req, res) => {
   const payment = await Payment.findOne({ publicId: req.params.id, merchantId: req.merchant._id });
   if (!payment) throw ApiError.notFound(ERROR_CODES.PAYMENT_NOT_FOUND, 'Payment not found.');
-  if (payment.status !== 'pending') {
+  if (!MANUALLY_SETTLEABLE_STATUSES.includes(payment.status)) {
     throw ApiError.badRequest(ERROR_CODES.PAYMENT_NOT_PENDING, `Payment is ${payment.status}, cannot cancel.`);
   }
   payment.status = 'cancelled';
@@ -66,7 +71,7 @@ const cancel = asyncHandler(async (req, res) => {
 const confirm = asyncHandler(async (req, res) => {
   const payment = await Payment.findOne({ publicId: req.params.id, merchantId: req.merchant._id });
   if (!payment) throw ApiError.notFound(ERROR_CODES.PAYMENT_NOT_FOUND, 'Payment not found.');
-  if (payment.status !== 'pending') {
+  if (!MANUALLY_SETTLEABLE_STATUSES.includes(payment.status)) {
     throw ApiError.badRequest(ERROR_CODES.PAYMENT_NOT_PENDING, `Payment is ${payment.status}, cannot confirm.`);
   }
 
