@@ -63,4 +63,10 @@ const remove = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { list, create, update, remove, suggestProvider };
+const destroy = asyncHandler(async (req, res) => {
+  const account = await MerchantUpiAccount.findOneAndDelete({ publicId: req.params.id, merchantId: req.merchant._id });
+  if (!account) throw ApiError.notFound(ERROR_CODES.UPI_ACCOUNT_NOT_FOUND, 'UPI account not found.');
+  res.json({ ok: true });
+});
+
+module.exports = { list, create, update, remove, destroy, suggestProvider };

@@ -4,6 +4,7 @@ const validate = require('../middleware/validate.middleware');
 const { loginSchema, webhookSettingsSchema } = require('../validators/auth.validator');
 const { createUpiAccountSchema, updateUpiAccountSchema } = require('../validators/upiAccount.validator');
 const { createPaymentSchema, listPaymentsQuerySchema, confirmPaymentSchema } = require('../validators/payment.validator');
+const { connectForwarderSchema } = require('../validators/forwarder.validator');
 
 const auth = require('../controllers/merchantAuth.controller');
 const upiAccounts = require('../controllers/merchantUpiAccounts.controller');
@@ -25,6 +26,7 @@ router.get('/upi-accounts/suggest-provider', upiAccounts.suggestProvider);
 router.post('/upi-accounts', validate(createUpiAccountSchema), upiAccounts.create);
 router.patch('/upi-accounts/:id', validate(updateUpiAccountSchema), upiAccounts.update);
 router.delete('/upi-accounts/:id', upiAccounts.remove);
+router.delete('/upi-accounts/:id/permanent', upiAccounts.destroy);
 
 router.get('/settings/webhook', settings.getWebhookSettings);
 router.put('/settings/webhook', validate(webhookSettingsSchema), settings.updateWebhookSettings);
@@ -40,7 +42,7 @@ router.get('/payments/:id', payments.getOne);
 router.post('/payments/:id/cancel', payments.cancel);
 router.post('/payments/:id/confirm', validate(confirmPaymentSchema), payments.confirm);
 
-router.post('/forwarder/connect', forwarder.connect);
+router.post('/forwarder/connect', validate(connectForwarderSchema), forwarder.connect);
 router.get('/forwarder/status', forwarder.status);
 router.delete('/forwarder/:deviceId', forwarder.disconnect);
 router.get('/forwarder/logs', forwarder.logs);

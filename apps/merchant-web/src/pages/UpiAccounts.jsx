@@ -50,6 +50,12 @@ export default function UpiAccounts() {
     load();
   };
 
+  const destroy = async (id) => {
+    if (!confirm('Permanently delete this UPI account? This cannot be undone.')) return;
+    await api.del(`/api/merchant/upi-accounts/${id}/permanent`);
+    load();
+  };
+
   const setDefault = async (id) => {
     await api.patch(`/api/merchant/upi-accounts/${id}`, { isDefault: true });
     load();
@@ -140,6 +146,11 @@ export default function UpiAccounts() {
               {a.isActive && (
                 <Button variant="danger" onClick={() => remove(a.publicId)}>
                   Deactivate
+                </Button>
+              )}
+              {!a.isActive && (
+                <Button variant="danger" onClick={() => destroy(a.publicId)}>
+                  Delete
                 </Button>
               )}
             </div>

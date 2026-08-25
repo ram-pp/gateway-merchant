@@ -11,7 +11,7 @@ const { detectProviderFromAppIdentifier } = require('@merchant-pay/shared');
  * pending payments. Mutates and saves the ForwarderLog with the outcome, and
  * on match marks the Payment paid + fires webhook/SSE.
  */
-async function runMatchPipeline({ log, merchant }) {
+async function runMatchPipeline({ log, merchant, device }) {
   // Ignore Google Pay merchant summary banner notifications which repeat
   // the last received payment and should not trigger matching.
   try {
@@ -76,7 +76,13 @@ async function runMatchPipeline({ log, merchant }) {
     }
   }
 
-  const pendingPayments = await Payment.find({ merchantId: merchant._id, status: 'pending' }).lean();
+  // If this device is linked to a specific UPI account, scope candidates to
+  // that account only — prevents a notification received on one device from
+  // being cross-matched to a pending payment on a different UPI account.
+  const paymentFilter = { merchantId: merchant._id, status: 'pending' };
+  if (device?.upiAccountId) paymentFilter.upiAccountId = device.upiAccountId;
+
+  const pendingPayments = await Payment.find(paymentFilter).lean();
   const upiAccounts = await MerchantUpiAccount.find({
     _id: { $in: pendingPayments.map((p) => p.upiAccountId) },
   }).lean();

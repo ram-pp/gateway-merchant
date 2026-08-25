@@ -1,5 +1,10 @@
 const Joi = require('joi');
 
+const connectForwarderSchema = Joi.object({
+  label: Joi.string().trim().max(60).optional(),
+  upiAccountId: Joi.string().trim().optional(),
+});
+
 const registerForwarderSchema = Joi.object({
   pairingToken: Joi.string().trim().required(),
   forwarderToken: Joi.string().trim().min(10).required(),
@@ -18,4 +23,4 @@ const forwarderEventSchema = Joi.object({
   time: Joi.date().optional(),
 });
 
-module.exports = { registerForwarderSchema, forwarderEventSchema };
+module.exports = { connectForwarderSchema, registerForwarderSchema, forwarderEventSchema };

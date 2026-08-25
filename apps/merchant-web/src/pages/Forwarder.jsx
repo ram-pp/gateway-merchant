@@ -1,19 +1,23 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
-import { Badge, Button, Card, ErrorBanner } from '../components/ui';
+import { Badge, Button, Card, ErrorBanner, Select } from '../components/ui';
 
 export default function Forwarder() {
   const [status, setStatus] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [upiAccounts, setUpiAccounts] = useState([]);
+  const [selectedUpiAccountId, setSelectedUpiAccountId] = useState('');
   const [error, setError] = useState('');
   const [generating, setGenerating] = useState(false);
 
   const load = () => api.get('/api/merchant/forwarder/status').then(setStatus).catch((e) => setError(e.message));
   const loadLogs = () => api.get('/api/merchant/forwarder/logs?limit=20').then((d) => setLogs(d.data)).catch(() => {});
+  const loadUpiAccounts = () => api.get('/api/merchant/upi-accounts').then((d) => setUpiAccounts(d.data)).catch(() => {});
 
   useEffect(() => {
     load();
     loadLogs();
+    loadUpiAccounts();
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -22,7 +26,7 @@ export default function Forwarder() {
     setGenerating(true);
     setError('');
     try {
-      await api.post('/api/merchant/forwarder/connect');
+      await api.post('/api/merchant/forwarder/connect', { upiAccountId: selectedUpiAccountId || undefined });
       load();
     } catch (err) {
       setError(err.message);
@@ -52,9 +56,29 @@ export default function Forwarder() {
             <p className="text-3xl font-mono font-bold tracking-widest text-brand-700">{status.pairingToken}</p>
           </div>
         ) : (
-          <Button onClick={connect} disabled={generating}>
-            {generating ? 'Generating…' : 'Generate pairing code'}
-          </Button>
+          <div className="space-y-3">
+            <Select
+              label="UPI account this device receives credit notifications for (optional)"
+              value={selectedUpiAccountId}
+              onChange={(e) => setSelectedUpiAccountId(e.target.value)}
+              className="max-w-sm"
+            >
+              <option value="">No specific account — match across all UPI accounts</option>
+              {upiAccounts.map((a) => (
+                <option key={a.publicId} value={a.publicId}>
+                  {a.displayName} ({a.upiId})
+                </option>
+              ))}
+            </Select>
+            <p className="text-xs text-slate-500 max-w-sm">
+              Linking a device to a specific UPI account keeps payment matching accurate when you run multiple
+              devices/accounts — a credit notification on this device will only be matched against that account's
+              pending payments.
+            </p>
+            <Button onClick={connect} disabled={generating}>
+              {generating ? 'Generating…' : 'Generate pairing code'}
+            </Button>
+          </div>
         )}
         <ErrorBanner message={error} />
       </Card>
@@ -69,6 +93,9 @@ export default function Forwarder() {
               <div key={d._id} className="flex items-center justify-between py-2 border-t border-slate-100 first:border-0">
                 <div>
                   <p className="text-sm font-medium text-slate-800">{d.label}</p>
+                  <p className="text-xs text-slate-400">
+                    {d.upiAccountId ? `Linked to ${d.upiAccountId.displayName} (${d.upiAccountId.upiId})` : 'Not linked to a specific UPI account'}
+                  </p>
                   <p className="text-xs text-slate-400">
                     {d.lastEventAt ? `Last event ${new Date(d.lastEventAt).toLocaleString()}` : 'No events yet'}
                   </p>

@@ -4,6 +4,7 @@ const forwarderPairingTokenSchema = new mongoose.Schema({
   merchantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Merchant', required: true, index: true },
   token: { type: String, required: true, unique: true },
   label: { type: String, default: null },
+  upiAccountId: { type: mongoose.Schema.Types.ObjectId, ref: 'MerchantUpiAccount', default: null },
   createdAt: {
     type: Date,
     default: Date.now,

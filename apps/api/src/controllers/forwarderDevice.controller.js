@@ -1,7 +1,7 @@
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { randomToken } = require('../utils/crypto.util');
-const { ForwarderPairingToken, ForwarderDevice, ForwarderLog, Merchant } = require('../models');
+const { ForwarderPairingToken, ForwarderDevice, ForwarderLog, Merchant, MerchantUpiAccount } = require('../models');
 const { runMatchPipeline } = require('../services/forwarderMatch.service');
 
 /** POST /api/forwarder/register — forwarder app exchanges a pairing token for a persistent forwarderToken. */
@@ -18,7 +18,12 @@ const register = asyncHandler(async (req, res) => {
     merchantId: pairing.merchantId,
     forwarderToken,
     label: label || 'Forwarder device',
+    upiAccountId: pairing.upiAccountId || null,
   });
+
+  if (pairing.upiAccountId) {
+    await MerchantUpiAccount.updateOne({ _id: pairing.upiAccountId }, { $set: { forwarderDeviceId: device._id } });
+  }
 
   await ForwarderPairingToken.deleteOne({ _id: pairing._id });
 
@@ -63,7 +68,7 @@ const receiveEvent = asyncHandler(async (req, res) => {
   res.status(201).json({ id: log._id, createdAt: log.createdAt });
 
   setImmediate(() => {
-    runMatchPipeline({ log, merchant }).catch((err) =>
+    runMatchPipeline({ log, merchant, device }).catch((err) =>
       console.error(`[forwarder] match pipeline failed for log ${log._id}:`, err.message),
     );
   });
