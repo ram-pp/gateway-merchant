@@ -30,6 +30,42 @@ async function runMatchPipeline({ log, merchant, device }) {
   } catch (err) {
     // ignore errors and continue with normal parsing
   }
+
+  // Google Pay Merchant also re-fires the same transaction as a second,
+  // generic "live notifications" banner sharing the real notification's
+  // title but with this fixed placeholder body. Without this check the
+  // banner can slip through as a second, distinct credit event for the same
+  // underlying transaction — treat it as a duplicate of the real one instead.
+  try {
+    const GPAY_LIVE_NOTIFICATIONS_TEXT = 'see live notifications here when you receive customer payments';
+    if (
+      typeof log.message === 'string' &&
+      log.message.trim().toLowerCase().includes(GPAY_LIVE_NOTIFICATIONS_TEXT) &&
+      typeof log.metaTitle === 'string' &&
+      log.metaTitle.trim()
+    ) {
+      const sibling = await ForwarderLog.findOne({
+        merchantId: merchant._id,
+        _id: { $ne: log._id },
+        metaTitle: log.metaTitle,
+        message: { $ne: log.message },
+        createdAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
+      }).sort({ createdAt: -1 });
+
+      if (sibling) {
+        log.matchStatus = 'duplicate';
+        log.isDuplicate = true;
+        log.duplicateOf = sibling._id;
+        log.matchedPaymentId = sibling.matchedPaymentId;
+        log.matchReason = `Duplicate of log ${sibling._id} — same title "${log.metaTitle}", generic "live notifications" banner.`;
+        await log.save();
+        return { matched: false, duplicate: true };
+      }
+    }
+  } catch (err) {
+    // ignore errors and continue with normal parsing
+  }
+
   const parsed = parsePaymentMessage({
     message: log.message,
     title: log.metaTitle,
@@ -80,7 +116,21 @@ async function runMatchPipeline({ log, merchant, device }) {
   // that account only — prevents a notification received on one device from
   // being cross-matched to a pending payment on a different UPI account.
   const paymentFilter = { merchantId: merchant._id, status: 'pending' };
-  if (device?.upiAccountId) paymentFilter.upiAccountId = device.upiAccountId;
+  if (device?.upiAccountId) {
+    paymentFilter.upiAccountId = device.upiAccountId;
+  } else {
+    // This device isn't linked to a specific UPI account — exclude payments
+    // on accounts that ARE linked to some other forwarder device. A UPI
+    // account with a linked device can only be settled by that device's own
+    // logs, never by an unlinked (or differently-linked) device's events.
+    const linkedAccountIds = await MerchantUpiAccount.find({
+      merchantId: merchant._id,
+      forwarderDeviceId: { $ne: null },
+    }).distinct('_id');
+    if (linkedAccountIds.length) {
+      paymentFilter.upiAccountId = { $nin: linkedAccountIds };
+    }
+  }
 
   const pendingPayments = await Payment.find(paymentFilter).lean();
   const upiAccounts = await MerchantUpiAccount.find({

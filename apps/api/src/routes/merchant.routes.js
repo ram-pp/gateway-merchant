@@ -1,10 +1,11 @@
 const express = require('express');
-const { authenticateMerchantJwt } = require('../middleware/auth.middleware');
+const { authenticateMerchantJwt, requireMerchantAdmin } = require('../middleware/auth.middleware');
 const validate = require('../middleware/validate.middleware');
 const { loginSchema, webhookSettingsSchema } = require('../validators/auth.validator');
 const { createUpiAccountSchema, updateUpiAccountSchema } = require('../validators/upiAccount.validator');
 const { createPaymentSchema, listPaymentsQuerySchema, confirmPaymentSchema } = require('../validators/payment.validator');
 const { connectForwarderSchema } = require('../validators/forwarder.validator');
+const { createStaffSchema, updateStaffSchema } = require('../validators/merchantUser.validator');
 
 const auth = require('../controllers/merchantAuth.controller');
 const upiAccounts = require('../controllers/merchantUpiAccounts.controller');
@@ -12,6 +13,7 @@ const settings = require('../controllers/merchantSettings.controller');
 const credentials = require('../controllers/merchantCredentials.controller');
 const payments = require('../controllers/merchantPayments.controller');
 const forwarder = require('../controllers/merchantForwarder.controller');
+const staff = require('../controllers/merchantStaff.controller');
 
 const router = express.Router();
 
@@ -46,5 +48,9 @@ router.post('/forwarder/connect', validate(connectForwarderSchema), forwarder.co
 router.get('/forwarder/status', forwarder.status);
 router.delete('/forwarder/:deviceId', forwarder.disconnect);
 router.get('/forwarder/logs', forwarder.logs);
+
+router.get('/staff', requireMerchantAdmin, staff.list);
+router.post('/staff', requireMerchantAdmin, validate(createStaffSchema), staff.create);
+router.patch('/staff/:id', requireMerchantAdmin, validate(updateStaffSchema), staff.update);
 
 module.exports = router;

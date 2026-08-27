@@ -96,9 +96,17 @@ const requireSuperadmin = (req, res, next) => {
   next();
 };
 
+const requireMerchantAdmin = (req, res, next) => {
+  if (req.merchantUser?.role !== 'merchant_admin') {
+    throw ApiError.forbidden('Merchant admin role required.');
+  }
+  next();
+};
+
 module.exports = {
   authenticateMerchantApi,
   authenticateMerchantJwt,
   authenticatePlatformAdmin,
   requireSuperadmin,
+  requireMerchantAdmin,
 };

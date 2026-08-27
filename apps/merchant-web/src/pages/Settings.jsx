@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { api } from '../api';
-import { Button, Card, ErrorBanner, Input } from '../components/ui';
+import { Badge, Button, Card, ErrorBanner, Input, Select } from '../components/ui';
 
 const DEFAULT_PAY_PAGE_THEME = {
   mode: 'light',
@@ -398,11 +398,130 @@ export default function Settings() {
         </div>
       </Card>
 
+      <StaffSection currentUser={session?.user} />
+    </div>
+  );
+}
+
+const emptyStaffForm = { name: '', email: '', password: '', role: 'merchant_staff' };
+
+function StaffSection({ currentUser }) {
+  const isAdmin = currentUser?.role === 'merchant_admin';
+  const [staff, setStaff] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(emptyStaffForm);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = () => api.get('/api/merchant/staff').then((d) => setStaff(d.data)).catch(() => {});
+
+  useEffect(() => {
+    if (isAdmin) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await api.post('/api/merchant/staff', form);
+      setForm(emptyStaffForm);
+      setShowForm(false);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleActive = async (member) => {
+    await api.patch(`/api/merchant/staff/${member.id}`, { isActive: !member.isActive });
+    load();
+  };
+
+  if (!isAdmin) {
+    return (
       <Card>
         <h2 className="font-semibold text-slate-800 mb-2">Staff</h2>
-        <p className="text-sm text-slate-500">Staff invites are coming soon — currently one owner account per merchant.</p>
+        <p className="text-sm text-slate-500">Only merchant admins can view and manage staff accounts.</p>
       </Card>
-    </div>
+    );
+  }
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-semibold text-slate-800">Staff</h2>
+        <Button onClick={() => setShowForm((s) => !s)}>{showForm ? 'Cancel' : 'Add staff'}</Button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={submit} className="space-y-4 mb-5 border-b border-slate-100 pb-5">
+          <Input
+            label="Name"
+            required
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          />
+          <Input
+            label="Email"
+            type="email"
+            required
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+          />
+          <Input
+            label="Password"
+            type="password"
+            required
+            minLength={8}
+            value={form.password}
+            onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+          />
+          <Select
+            label="Role"
+            value={form.role}
+            onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+          >
+            <option value="merchant_staff">Staff</option>
+            <option value="merchant_admin">Admin</option>
+          </Select>
+          <ErrorBanner message={error} />
+          <Button type="submit" disabled={saving}>
+            {saving ? 'Adding…' : 'Add staff'}
+          </Button>
+        </form>
+      )}
+
+      {!staff.length ? (
+        <p className="text-sm text-slate-500">No staff accounts yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {staff.map((member) => (
+            <div key={member.id} className="flex items-center justify-between py-2 border-t border-slate-100 first:border-0">
+              <div>
+                <p className="text-sm font-medium text-slate-800">
+                  {member.name} {member.id === currentUser?.id && <span className="text-xs text-slate-400">(you)</span>}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {member.email} · {member.role === 'merchant_admin' ? 'Admin' : 'Staff'}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge status={member.isActive ? 'active' : 'suspended'} />
+                {member.id !== currentUser?.id && (
+                  <Button variant={member.isActive ? 'danger' : 'secondary'} onClick={() => toggleActive(member)}>
+                    {member.isActive ? 'Deactivate' : 'Activate'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 
