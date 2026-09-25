@@ -23,6 +23,10 @@ const forwarderLinkedAccountSchema = new mongoose.Schema(
     remark: { type: String, default: 'Linked Account', trim: true, maxlength: 120 },
     linkedAt: { type: Date, default: Date.now },
     lastSyncedAt: { type: Date, default: Date.now },
+    // Rotation bookkeeping — mirrors the standalone cookie-rotation sample script.
+    cookieExpiresAt: { type: Date, default: null, index: true },
+    lastRotatedAt: { type: Date, default: null },
+    lastRotationError: { type: String, default: null },
   },
   { timestamps: true },
 );

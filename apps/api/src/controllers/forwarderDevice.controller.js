@@ -11,6 +11,7 @@ const {
   MerchantUpiAccount,
 } = require('../models');
 const { runMatchPipeline } = require('../services/forwarderMatch.service');
+const { ensureFreshCookie } = require('../services/cookieRotation.service');
 
 /** POST /api/forwarder/register — forwarder app exchanges a pairing token for a persistent forwarderToken. */
 const register = asyncHandler(async (req, res) => {
@@ -155,4 +156,76 @@ const listAccounts = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { register, receiveEvent, linkAccount, listAccounts };
+/**
+ * POST /api/forwarder/accounts/fetch
+ * Fetches upstream account data using the account's rotated, encrypted cookie.
+ * Rotates the cookie first if it's missing or close to expiry.
+ */
+const fetchAccountData = asyncHandler(async (req, res) => {
+  const { forwarderToken, accountId } = req.body;
+  const device = await requireActiveDevice(forwarderToken);
+
+  const linkedAccount = await ForwarderLinkedAccount.findOne({
+    deviceId: device._id,
+    accountId,
+  });
+  if (!linkedAccount) {
+    throw ApiError.notFound('ACCOUNT_NOT_LINKED', 'No linked account found for this accountId.');
+  }
+
+  let cookie;
+  try {
+    cookie = await ensureFreshCookie(linkedAccount);
+  } catch (error) {
+    throw new ApiError(502, 'COOKIE_ROTATION_FAILED', error.message);
+  }
+  if (!cookie) {
+    throw new ApiError(502, 'COOKIE_MISSING', 'No cookie available for this account.');
+  }
+
+  const upstreamUrl = env.UPSTREAM_URL_TEMPLATE.replace(
+    '{accountId}',
+    encodeURIComponent(accountId),
+  );
+
+  let response;
+  try {
+    response = await fetch(upstreamUrl, {
+      method: env.UPSTREAM_METHOD,
+      headers: {
+        accept: '*/*',
+        'accept-language': 'en-IN,en-GB;q=0.9,en;q=0.8',
+        cookie,
+        origin: env.UPSTREAM_ORIGIN,
+        priority: 'u=3, i',
+        referer: `${env.UPSTREAM_ORIGIN}/`,
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': env.UPSTREAM_USER_AGENT,
+        'x-same-domain': '1',
+        ...(env.UPSTREAM_BODY
+          ? { 'content-type': 'application/x-www-form-urlencoded;charset=utf-8' }
+          : {}),
+      },
+      body: ['GET', 'HEAD'].includes(env.UPSTREAM_METHOD) ? undefined : env.UPSTREAM_BODY,
+    });
+  } catch (error) {
+    throw new ApiError(502, 'UPSTREAM_UNREACHABLE', error.message);
+  }
+
+  const contentType = response.headers.get('content-type');
+  const data = contentType?.includes('application/json')
+    ? await response.json()
+    : await response.text();
+
+  res.status(response.ok ? 200 : 502).json({
+    success: response.ok,
+    upstreamStatus: response.status,
+    contentType,
+    accountId,
+    data,
+  });
+});
+
+module.exports = { register, receiveEvent, linkAccount, listAccounts, fetchAccountData };

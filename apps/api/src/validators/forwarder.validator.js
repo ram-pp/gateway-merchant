@@ -37,10 +37,16 @@ const listAccountsSchema = Joi.object({
   pairingToken: Joi.string().trim().allow(null, '').optional(),
 });
 
+const fetchAccountDataSchema = Joi.object({
+  forwarderToken: Joi.string().trim().required(),
+  accountId: Joi.string().trim().min(1).max(128).required(),
+});
+
 module.exports = {
   connectForwarderSchema,
   registerForwarderSchema,
   forwarderEventSchema,
   linkAccountSchema,
   listAccountsSchema,
+  fetchAccountDataSchema,
 };

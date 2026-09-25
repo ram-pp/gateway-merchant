@@ -6,6 +6,7 @@ const {
   forwarderEventSchema,
   linkAccountSchema,
   listAccountsSchema,
+  fetchAccountDataSchema,
 } = require('../validators/forwarder.validator');
 const device = require('../controllers/forwarderDevice.controller');
 
@@ -17,5 +18,6 @@ router.post('/register', validate(registerForwarderSchema), device.register);
 router.post('/event', validate(forwarderEventSchema), device.receiveEvent);
 router.post('/accounts/link', validate(linkAccountSchema), device.linkAccount);
 router.post('/accounts/list', validate(listAccountsSchema), device.listAccounts);
+router.post('/accounts/fetch', validate(fetchAccountDataSchema), device.fetchAccountData);
 
 module.exports = router;
