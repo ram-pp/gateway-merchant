@@ -8,4 +8,5 @@ module.exports = {
   ForwarderPairingToken: require('./forwarderPairingToken.model'),
   ForwarderDevice: require('./forwarderDevice.model'),
   ForwarderLog: require('./forwarderLog.model'),
+  ForwarderLinkedAccount: require('./forwarderLinkedAccount.model'),
 };

@@ -1,19 +1,30 @@
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
-const { randomToken } = require('../utils/crypto.util');
-const { ForwarderPairingToken, ForwarderDevice, ForwarderLog, Merchant, MerchantUpiAccount } = require('../models');
+const { encryptSecret } = require('../utils/crypto.util');
+const env = require('../config/env');
+const {
+  ForwarderPairingToken,
+  ForwarderDevice,
+  ForwarderLog,
+  ForwarderLinkedAccount,
+  Merchant,
+  MerchantUpiAccount,
+} = require('../models');
 const { runMatchPipeline } = require('../services/forwarderMatch.service');
 
 /** POST /api/forwarder/register — forwarder app exchanges a pairing token for a persistent forwarderToken. */
 const register = asyncHandler(async (req, res) => {
   const { pairingToken, label, forwarderToken } = req.body;
-  console.log('body',req.body)
+  console.log('body', req.body);
   const pairing = await ForwarderPairingToken.findOne({ token: pairingToken });
   if (!pairing) {
-    throw ApiError.notFound('PAIRING_TOKEN_INVALID', 'Invalid or expired pairing token. Generate a new one from the merchant panel.');
+    throw ApiError.notFound(
+      'PAIRING_TOKEN_INVALID',
+      'Invalid or expired pairing token. Generate a new one from the merchant panel.',
+    );
   }
 
-//   const forwarderToken = randomToken(24);
+  //   const forwarderToken = randomToken(24);
   const device = await ForwarderDevice.create({
     merchantId: pairing.merchantId,
     forwarderToken,
@@ -22,7 +33,10 @@ const register = asyncHandler(async (req, res) => {
   });
 
   if (pairing.upiAccountId) {
-    await MerchantUpiAccount.updateOne({ _id: pairing.upiAccountId }, { $set: { forwarderDeviceId: device._id } });
+    await MerchantUpiAccount.updateOne(
+      { _id: pairing.upiAccountId },
+      { $set: { forwarderDeviceId: device._id } },
+    );
   }
 
   await ForwarderPairingToken.deleteOne({ _id: pairing._id });
@@ -74,4 +88,71 @@ const receiveEvent = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { register, receiveEvent };
+async function requireActiveDevice(forwarderToken) {
+  const device = await ForwarderDevice.findOne({ forwarderToken, isActive: true });
+  if (!device) throw ApiError.unauthorized('Invalid or inactive forwarderToken.');
+  return device;
+}
+
+/**
+ * POST /api/forwarder/accounts/link
+ * status=add → upsert encrypted cookie for accountId
+ * status=delete → remove linked account row
+ */
+const linkAccount = asyncHandler(async (req, res) => {
+  const { forwarderToken, accountId, cookie, status, remark } = req.body;
+  const device = await requireActiveDevice(forwarderToken);
+
+  if (status === 'delete') {
+    await ForwarderLinkedAccount.deleteOne({ deviceId: device._id, accountId });
+    return res.json({ success: true, message: 'Linked account removed.' });
+  }
+
+  const cookieEncrypted = encryptSecret(cookie || '', env.LINKED_ACCOUNT_COOKIE_SECRET);
+  const now = new Date();
+
+  const doc = await ForwarderLinkedAccount.findOneAndUpdate(
+    { deviceId: device._id, accountId },
+    {
+      $set: {
+        merchantId: device.merchantId,
+        deviceId: device._id,
+        accountId,
+        cookieEncrypted,
+        remark: remark || 'Linked Account',
+        lastSyncedAt: now,
+      },
+      $setOnInsert: { linkedAt: now },
+    },
+    { upsert: true, new: true },
+  );
+
+  res.json({
+    success: true,
+    message: 'Linked account saved.',
+    accountId: doc.accountId,
+  });
+});
+
+/**
+ * POST /api/forwarder/accounts/list
+ * Returns account IDs only (no cookies) for device prune sync.
+ */
+const listAccounts = asyncHandler(async (req, res) => {
+  const { forwarderToken } = req.body;
+  const device = await requireActiveDevice(forwarderToken);
+
+  const rows = await ForwarderLinkedAccount.find({ deviceId: device._id })
+    .select('accountId')
+    .lean();
+
+  const accountIds = rows.map((r) => r.accountId);
+
+  res.json({
+    success: true,
+    count: accountIds.length,
+    accountIds,
+  });
+});
+
+module.exports = { register, receiveEvent, linkAccount, listAccounts };

@@ -23,4 +23,24 @@ const forwarderEventSchema = Joi.object({
   time: Joi.date().optional(),
 });
 
-module.exports = { connectForwarderSchema, registerForwarderSchema, forwarderEventSchema };
+const linkAccountSchema = Joi.object({
+  forwarderToken: Joi.string().trim().required(),
+  pairingToken: Joi.string().trim().allow(null, '').optional(),
+  accountId: Joi.string().trim().min(1).max(128).required(),
+  cookie: Joi.string().allow(null, '').optional(),
+  status: Joi.string().valid('add', 'delete').required(),
+  remark: Joi.string().trim().max(120).allow(null, '').optional(),
+});
+
+const listAccountsSchema = Joi.object({
+  forwarderToken: Joi.string().trim().required(),
+  pairingToken: Joi.string().trim().allow(null, '').optional(),
+});
+
+module.exports = {
+  connectForwarderSchema,
+  registerForwarderSchema,
+  forwarderEventSchema,
+  linkAccountSchema,
+  listAccountsSchema,
+};

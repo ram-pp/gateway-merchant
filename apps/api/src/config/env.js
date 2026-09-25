@@ -26,6 +26,11 @@ const env = {
   PLATFORM_ADMIN_JWT_EXPIRES_IN: required('PLATFORM_ADMIN_JWT_EXPIRES_IN', '12h'),
   DEFAULT_PAYMENT_TTL_SECONDS: Number(required('DEFAULT_PAYMENT_TTL_SECONDS', 900)),
   FORWARDER_MATCH_WINDOW_MIN: Number(required('FORWARDER_MATCH_WINDOW_MIN', 30)),
+  /** Used to encrypt linked-account session cookies at rest. */
+  LINKED_ACCOUNT_COOKIE_SECRET: required(
+    'LINKED_ACCOUNT_COOKIE_SECRET',
+    required('MERCHANT_JWT_SECRET', 'dev-merchant-secret-change-me'),
+  ),
   WEBHOOK_MAX_ATTEMPTS: Number(required('WEBHOOK_MAX_ATTEMPTS', 8)),
   WEBHOOK_WORKER_INTERVAL_MS: Number(required('WEBHOOK_WORKER_INTERVAL_MS', 5000)),
   SEED_SUPERADMIN_EMAIL: required('SEED_SUPERADMIN_EMAIL', 'admin@merchant-pay.local'),
