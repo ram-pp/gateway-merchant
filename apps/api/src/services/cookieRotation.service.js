@@ -9,6 +9,9 @@ const rotationsInFlight = new Map();
 
 function cookieNeedsRotation(linkedAccount) {
   if (!linkedAccount.cookieEncrypted) return true;
+  // Never rotated yet — do it once so we learn the real expiry (or confirm the
+  // upstream doesn't provide one, in which case we trust the cookie from then on).
+  if (!linkedAccount.lastRotatedAt) return true;
   if (!linkedAccount.cookieExpiresAt) return false;
   return Date.now() + env.COOKIE_EXPIRY_SKEW_MS >= new Date(linkedAccount.cookieExpiresAt).getTime();
 }
