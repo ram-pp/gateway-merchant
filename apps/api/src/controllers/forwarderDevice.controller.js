@@ -209,6 +209,7 @@ const fetchAccountData = asyncHandler(async (req, res) => {
       },
       body,
     });
+    console.log('response', response.status, response.statusText, response);
   } catch (error) {
     throw new ApiError(502, 'UPSTREAM_UNREACHABLE', error.message);
   }
