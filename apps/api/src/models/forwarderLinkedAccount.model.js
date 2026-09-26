@@ -27,6 +27,10 @@ const forwarderLinkedAccountSchema = new mongoose.Schema(
     cookieExpiresAt: { type: Date, default: null, index: true },
     lastRotatedAt: { type: Date, default: null },
     lastRotationError: { type: String, default: null },
+    // Per-session anti-automation token required by the upstream fetch RPC.
+    // TODO: derivation formula not yet known — stays null until cookieRotation
+    // .service's deriveAtToken() is implemented; fetch requests send at="" until then.
+    atToken: { type: String, default: null },
   },
   { timestamps: true },
 );

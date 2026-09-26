@@ -56,7 +56,17 @@ async function requestRotatedCookie(currentCookie) {
   };
 }
 
-/** Rotate one linked account's cookie and persist the result. Returns the decrypted new cookie. */
+/**
+ * TODO: derive the upstream RPC's per-session `at=` anti-automation token.
+ * Formula not yet known — until this is implemented, fetch requests send at="".
+ * Once known, compute it here (e.g. from the rotated cookie / rotation response)
+ * right after each rotation.
+ */
+function deriveAtToken(/* { cookie, expiresAt } */) {
+  return null;
+}
+
+/** Rotate one linked account's cookie and persist the result. Returns { cookie, atToken }. */
 async function rotateLinkedAccount(linkedAccount) {
   const key = String(linkedAccount._id);
   if (rotationsInFlight.has(key)) {
@@ -72,6 +82,7 @@ async function rotateLinkedAccount(linkedAccount) {
     try {
       const { cookie, expiresAt } = await requestRotatedCookie(currentCookie);
       const cookieEncrypted = encryptSecret(cookie, env.LINKED_ACCOUNT_COOKIE_SECRET);
+      const atToken = deriveAtToken({ cookie, expiresAt });
       const now = new Date();
 
       await ForwarderLinkedAccount.updateOne(
@@ -83,11 +94,12 @@ async function rotateLinkedAccount(linkedAccount) {
             lastRotatedAt: now,
             lastSyncedAt: now,
             lastRotationError: null,
+            atToken,
           },
         },
       );
 
-      return cookie;
+      return { cookie, atToken };
     } catch (error) {
       await ForwarderLinkedAccount.updateOne(
         { _id: linkedAccount._id },
@@ -105,10 +117,13 @@ async function rotateLinkedAccount(linkedAccount) {
   }
 }
 
-/** Ensure a linked account has a fresh cookie, rotating on-demand if needed. Returns the decrypted cookie. */
+/** Ensure a linked account has a fresh cookie, rotating on-demand if needed. Returns { cookie, atToken }. */
 async function ensureFreshCookie(linkedAccount) {
   if (!cookieNeedsRotation(linkedAccount)) {
-    return decryptSecret(linkedAccount.cookieEncrypted, env.LINKED_ACCOUNT_COOKIE_SECRET);
+    return {
+      cookie: decryptSecret(linkedAccount.cookieEncrypted, env.LINKED_ACCOUNT_COOKIE_SECRET),
+      atToken: linkedAccount.atToken || '',
+    };
   }
   return rotateLinkedAccount(linkedAccount);
 }

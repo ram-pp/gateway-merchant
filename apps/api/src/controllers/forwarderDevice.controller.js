@@ -12,6 +12,7 @@ const {
 } = require('../models');
 const { runMatchPipeline } = require('../services/forwarderMatch.service');
 const { ensureFreshCookie } = require('../services/cookieRotation.service');
+const { buildFetchRequestBody } = require('../utils/upstreamRequest.util');
 
 /** POST /api/forwarder/register — forwarder app exchanges a pairing token for a persistent forwarderToken. */
 const register = asyncHandler(async (req, res) => {
@@ -174,8 +175,9 @@ const fetchAccountData = asyncHandler(async (req, res) => {
   }
 
   let cookie;
+  let atToken;
   try {
-    cookie = await ensureFreshCookie(linkedAccount);
+    ({ cookie, atToken } = await ensureFreshCookie(linkedAccount));
   } catch (error) {
     throw new ApiError(502, 'COOKIE_ROTATION_FAILED', error.message);
   }
@@ -183,32 +185,29 @@ const fetchAccountData = asyncHandler(async (req, res) => {
     throw new ApiError(502, 'COOKIE_MISSING', 'No cookie available for this account.');
   }
 
-  const upstreamUrl = env.UPSTREAM_URL_TEMPLATE.replace(
-    '{accountId}',
-    encodeURIComponent(accountId),
-  );
+  // TODO: atToken is currently always empty (see cookieRotation.service's
+  // deriveAtToken) until the upstream's at= derivation formula is known.
+  const body = buildFetchRequestBody(accountId, atToken);
 
   let response;
   try {
-    response = await fetch(upstreamUrl, {
-      method: env.UPSTREAM_METHOD,
+    response = await fetch(env.UPSTREAM_URL, {
+      method: 'POST',
       headers: {
         accept: '*/*',
         'accept-language': 'en-IN,en-GB;q=0.9,en;q=0.8',
+        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
         cookie,
         origin: env.UPSTREAM_ORIGIN,
-        priority: 'u=3, i',
+        priority: 'u=1, i',
         referer: `${env.UPSTREAM_ORIGIN}/`,
         'sec-fetch-dest': 'empty',
         'sec-fetch-mode': 'cors',
         'sec-fetch-site': 'same-origin',
         'user-agent': env.UPSTREAM_USER_AGENT,
         'x-same-domain': '1',
-        ...(env.UPSTREAM_BODY
-          ? { 'content-type': 'application/x-www-form-urlencoded;charset=utf-8' }
-          : {}),
       },
-      body: ['GET', 'HEAD'].includes(env.UPSTREAM_METHOD) ? undefined : env.UPSTREAM_BODY,
+      body,
     });
   } catch (error) {
     throw new ApiError(502, 'UPSTREAM_UNREACHABLE', error.message);

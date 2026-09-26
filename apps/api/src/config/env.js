@@ -49,13 +49,10 @@ const env = {
     'COOKIE_ROTATION_USER_AGENT',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15',
   ),
-  // {accountId} is substituted with the linked account's accountId.
-  UPSTREAM_URL_TEMPLATE: required(
-    'UPSTREAM_URL_TEMPLATE',
-    'https://pay.fasspay.com/accounts/{accountId}/transactions',
-  ),
-  UPSTREAM_METHOD: required('UPSTREAM_METHOD', 'GET').toUpperCase(),
-  UPSTREAM_BODY: required('UPSTREAM_BODY', undefined),
+  // Fixed batchexecute-style RPC endpoint — accountId travels in the f.req body,
+  // not the URL (see utils/upstreamRequest.util.js for how the body is built).
+  UPSTREAM_URL: required('UPSTREAM_URL', 'https://pay.fasspay.com/_/rpc/batchexecute'),
+  UPSTREAM_RPC_ID: required('UPSTREAM_RPC_ID', 'RPtkab'),
   UPSTREAM_ORIGIN: required('UPSTREAM_ORIGIN', 'https://pay.fasspay.com'),
   UPSTREAM_USER_AGENT: required(
     'UPSTREAM_USER_AGENT',
