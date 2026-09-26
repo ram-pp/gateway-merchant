@@ -216,9 +216,7 @@ const fetchAccountData = asyncHandler(async (req, res) => {
   }
 
   const contentType = response.headers.get('content-type');
-  const data = contentType?.includes('application/json')
-    ? await response.json()
-    : await response.text();
+  const data = await response.text();
 
   res.status(response.ok ? 200 : 502).json({
     success: response.ok,
