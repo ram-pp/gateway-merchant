@@ -1,10 +1,10 @@
-const cheerio = require('cheerio');
+const { parse } = require('node-html-parser');
 const acorn = require('acorn');
 const env = require('../config/env');
 const { nodeToValue } = require('./astLiteral.util');
 
-const WINDOW_VAR_NAME = 'age_data_token_at';
-const TOKEN_PROPERTY = 'age';
+const WINDOW_VAR_NAME = 'WIZ_global_data';
+const TOKEN_PROPERTY = 'SNlM0e';
 
 function isTargetAssignment(node) {
   if (node.type !== 'ExpressionStatement') return false;
@@ -50,12 +50,11 @@ async function fetchAtToken({ cookie, accountId }) {
   }
 
   const html = await response.text();
-  const $ = cheerio.load(html);
+  const root = parse(html);
 
-  const script = $('script')
-    .filter((_, el) => $(el).text().includes(`window.${WINDOW_VAR_NAME}`))
-    .first()
-    .text();
+  const script = root
+    .querySelectorAll('script')
+    .find((el) => el.text.includes(`window.${WINDOW_VAR_NAME}`))?.text;
   if (!script) return null;
 
   let ast;
