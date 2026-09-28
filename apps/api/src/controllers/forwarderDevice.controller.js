@@ -11,8 +11,7 @@ const {
   MerchantUpiAccount,
 } = require('../models');
 const { runMatchPipeline } = require('../services/forwarderMatch.service');
-const { ensureFreshCookie } = require('../services/cookieRotation.service');
-const { buildFetchRequestBody } = require('../utils/upstreamRequest.util');
+const { fetchLinkedAccountTransactions } = require('../services/forwarderAccountFetch.service');
 
 /** POST /api/forwarder/register — forwarder app exchanges a pairing token for a persistent forwarderToken. */
 const register = asyncHandler(async (req, res) => {
@@ -174,76 +173,26 @@ const fetchAccountData = asyncHandler(async (req, res) => {
     throw ApiError.notFound('ACCOUNT_NOT_LINKED', 'No linked account found for this accountId.');
   }
 
-  let cookie;
-  let atToken;
+  let result;
   try {
-    ({ cookie, atToken } = await ensureFreshCookie(linkedAccount));
+    result = await fetchLinkedAccountTransactions(linkedAccount);
   } catch (error) {
-    throw new ApiError(502, 'COOKIE_ROTATION_FAILED', error.message);
-  }
-  if (!cookie) {
-    throw new ApiError(502, 'COOKIE_MISSING', 'No cookie available for this account.');
-  }
-
-  // TODO: atToken is currently always empty (see cookieRotation.service's
-  // deriveAtToken) until the upstream's at= derivation formula is known.
-  const body = buildFetchRequestBody(accountId, atToken);
-
-  let response;
-  try {
-    response = await fetch(env.UPSTREAM_URL, {
-      method: 'POST',
-      headers: {
-        accept: '*/*',
-        'accept-language': 'en-IN,en-GB;q=0.9,en;q=0.8',
-        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        cookie,
-        origin: env.UPSTREAM_ORIGIN,
-        priority: 'u=1, i',
-        referer: `${env.UPSTREAM_ORIGIN}/`,
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'same-origin',
-        'user-agent': env.UPSTREAM_USER_AGENT,
-        'x-same-domain': '1',
-      },
-      body,
-    });
-    console.log('request', env.UPSTREAM_URL, body, cookie, env.UPSTREAM_ORIGIN, env.UPSTREAM_USER_AGENT);
-    console.log('response', response.status, response.statusText, response);
-  } catch (error) {
+    if (error.stage === 'cookie_rotation') {
+      throw new ApiError(502, 'COOKIE_ROTATION_FAILED', error.message);
+    }
+    if (error.stage === 'cookie_missing') {
+      throw new ApiError(502, 'COOKIE_MISSING', error.message);
+    }
     throw new ApiError(502, 'UPSTREAM_UNREACHABLE', error.message);
   }
 
-  const contentType = response.headers.get('content-type');
-  const resp = await response.text();
-  const clean = resp.replace(/^\)\]\}'\s*/, "");
-    const data = JSON.parse(clean);
-
-    const wrb = data.find(item => item[0] === "wrb.fr");
-
-    if (!wrb) {
-    throw new Error("wrb.fr not found");
-    }
-
-    const result = JSON.parse(wrb[2]);
-    const payment = result[0][0][0];
-
-    console.log({
-    transactionId: result[0][0][0],
-    referenceId: result[0][0][1],
-    amount: result[0][0][3][1],
-    currency: result[0][0][3][0],
-    name: result[0][0][8][0],
-    vpa: result[0][0][8][1],
-    description: result[0][0][9],
-    });
-  res.status(response.ok ? 200 : 502).json({
-    success: response.ok,
-    upstreamStatus: response.status,
-    contentType,
+  res.status(result.ok ? 200 : 502).json({
+    success: result.ok,
+    upstreamStatus: result.upstreamStatus,
+    contentType: result.contentType,
     accountId,
-    data,
+    data: result.data,
+    transactions: result.transactions,
   });
 });
 

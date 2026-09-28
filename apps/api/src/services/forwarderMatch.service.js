@@ -1,6 +1,6 @@
 const { parsePaymentMessage } = require('../utils/paymentMessageParser');
 const { matchForwarderEvent } = require('../utils/matcher');
-const { Payment, MerchantUpiAccount, ForwarderLog } = require('../models');
+const { Payment, MerchantUpiAccount, ForwarderLog, ForwarderLinkedAccount } = require('../models');
 const { publish } = require('../utils/sse.hub');
 const { enqueueWebhook } = require('./webhookDelivery.service');
 const { serializePayment } = require('./payment.service');
@@ -12,6 +12,21 @@ const { detectProviderFromAppIdentifier } = require('@merchant-pay/shared');
  * on match marks the Payment paid + fires webhook/SSE.
  */
 async function runMatchPipeline({ log, merchant, device }) {
+  // A device pinned to one UPI account that also has a linked portal account
+  // is polled directly (see forwarderPaymentPoll.service.js) — that poll is
+  // the sole source of truth for that account's confirmations, so SMS/
+  // notification events from the same device must not also try to match.
+  if (device?.upiAccountId) {
+    const hasLinkedAccount = await ForwarderLinkedAccount.exists({ deviceId: device._id });
+    if (hasLinkedAccount) {
+      log.matchStatus = 'irrelevant';
+      log.matchReason =
+        'Device has a linked forwarder account; this UPI account is confirmed via the account-poll worker only.';
+      await log.save();
+      return { matched: false };
+    }
+  }
+
   // Ignore Google Pay merchant summary banner notifications which repeat
   // the last received payment and should not trigger matching.
   try {

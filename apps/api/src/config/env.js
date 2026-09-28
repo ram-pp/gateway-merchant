@@ -63,6 +63,12 @@ const env = {
   TXX_ORIGIN: required('TXX_ORIGIN', 'https://txx.fasspay.co.in'),
   TXX_URL_PATH: required('TXX_URL_PATH', '/'),
   TXX_QUERY_PARAM: required('TXX_QUERY_PARAM', 'accountId'),
+
+  // Polls each forwarder-linked account's upstream data for recent pending
+  // payments, to confirm payments the SMS/notification pipeline missed.
+  FORWARDER_POLL_CRON: required('FORWARDER_POLL_CRON', '*/3 * * * *'),
+  FORWARDER_POLL_LOOKBACK_MS: Number(required('FORWARDER_POLL_LOOKBACK_MS', 10 * 60 * 1000)),
+  FORWARDER_POLL_TIME_SKEW_MS: Number(required('FORWARDER_POLL_TIME_SKEW_MS', 3 * 60 * 1000)),
 };
 
 module.exports = env;

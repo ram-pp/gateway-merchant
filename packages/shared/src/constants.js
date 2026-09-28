@@ -8,7 +8,7 @@ const MERCHANT_USER_ROLES = ['merchant_admin', 'merchant_staff'];
 
 const PLATFORM_ADMIN_ROLES = ['superadmin', 'support'];
 
-const CONFIRMATION_SOURCES = ['forwarder', 'manual'];
+const CONFIRMATION_SOURCES = ['forwarder', 'forwarder_poll', 'manual'];
 
 const WEBHOOK_EVENTS = ['payment.paid', 'payment.expired', 'payment.failed'];
 

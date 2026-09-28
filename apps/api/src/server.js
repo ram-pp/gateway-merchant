@@ -4,6 +4,7 @@ const { connectDb } = require('./config/db');
 const { startWebhookWorker } = require('./services/webhookWorker.service');
 const { startPaymentExpiryWorker } = require('./services/paymentExpiry.service');
 const { startCookieRotationWorker } = require('./services/cookieRotation.worker');
+const { startForwarderPollWorker } = require('./services/forwarderPoll.worker');
 
 async function main() {
   await connectDb();
@@ -15,6 +16,7 @@ async function main() {
   startWebhookWorker();
   startPaymentExpiryWorker();
   startCookieRotationWorker();
+  startForwarderPollWorker();
 }
 
 main().catch((err) => {
