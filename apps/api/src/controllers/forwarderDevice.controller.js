@@ -216,8 +216,28 @@ const fetchAccountData = asyncHandler(async (req, res) => {
   }
 
   const contentType = response.headers.get('content-type');
-  const data = await response.text();
+  const resp = await response.text();
+  const clean = resp.replace(/^\)\]\}'\s*/, "");
+    const data = JSON.parse(clean);
 
+    const wrb = data.find(item => item[0] === "wrb.fr");
+
+    if (!wrb) {
+    throw new Error("wrb.fr not found");
+    }
+
+    const result = JSON.parse(wrb[2]);
+    const payment = result[0][0][0];
+
+    console.log({
+    transactionId: result[0][0][0],
+    referenceId: result[0][0][1],
+    amount: result[0][0][3][1],
+    currency: result[0][0][3][0],
+    name: result[0][0][8][0],
+    vpa: result[0][0][8][1],
+    description: result[0][0][9],
+    });
   res.status(response.ok ? 200 : 502).json({
     success: response.ok,
     upstreamStatus: response.status,
