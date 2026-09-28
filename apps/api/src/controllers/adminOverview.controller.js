@@ -1,9 +1,12 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { Merchant, Payment, ForwarderLog, WebhookDelivery } = require('../models');
+const { istDayStart } = require('../utils/date.util');
 
 const overview = asyncHandler(async (req, res) => {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+  // IST calendar day, not the server process's local day — this API runs
+  // in a container with no TZ set (UTC), which would otherwise shift
+  // "today" by 5:30 relative to the IST business day.
+  const startOfDay = istDayStart();
 
   const [merchantCount, activeMerchantCount, paymentsToday, paidToday, unmatchedLogs, failedWebhooks] =
     await Promise.all([

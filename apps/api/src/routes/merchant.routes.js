@@ -39,6 +39,7 @@ router.post('/credentials/revoke', credentials.revoke);
 router.post('/credentials/webhook-secret/rotate', credentials.rotateWebhookSecret);
 
 router.get('/payments', validate(listPaymentsQuerySchema, 'query'), payments.list);
+router.get('/payments/stats', payments.stats);
 router.post('/payments', validate(createPaymentSchema), payments.create);
 router.get('/payments/:id', payments.getOne);
 router.post('/payments/:id/cancel', payments.cancel);

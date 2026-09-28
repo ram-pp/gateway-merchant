@@ -1,6 +1,7 @@
 const env = require('../config/env');
 const { encryptSecret, decryptSecret } = require('../utils/crypto.util');
 const { getSetCookieHeaders, mergeCookies, getEarliestCookieExpiry } = require('../utils/cookie.util');
+const { fetchAtToken } = require('../utils/atToken.util');
 const { ForwarderLinkedAccount } = require('../models');
 
 // One in-flight rotation per linked account, so concurrent triggers (worker tick +
@@ -57,13 +58,19 @@ async function requestRotatedCookie(currentCookie) {
 }
 
 /**
- * TODO: derive the upstream RPC's per-session `at=` anti-automation token.
- * Formula not yet known — until this is implemented, fetch requests send at="".
- * Once known, compute it here (e.g. from the rotated cookie / rotation response)
- * right after each rotation.
+ * Derives the upstream RPC's per-session `at=` anti-automation token by loading
+ * the txx.fasspay.co.in page with the freshly rotated cookie and pulling it out
+ * of the inline `window.age_data_token_at` script variable (see atToken.util.js).
+ * Best-effort: a failure here doesn't fail the cookie rotation itself — it just
+ * leaves at="" for the next fetch, same as before this was implemented.
  */
-function deriveAtToken(/* { cookie, expiresAt } */) {
-  return null;
+async function deriveAtToken({ cookie, accountId }) {
+  try {
+    return await fetchAtToken({ cookie, accountId });
+  } catch (error) {
+    console.error(`[cookie-rotation] at-token derivation failed for ${accountId}:`, error.message);
+    return null;
+  }
 }
 
 /** Rotate one linked account's cookie and persist the result. Returns { cookie, atToken }. */
@@ -82,7 +89,7 @@ async function rotateLinkedAccount(linkedAccount) {
     try {
       const { cookie, expiresAt } = await requestRotatedCookie(currentCookie);
       const cookieEncrypted = encryptSecret(cookie, env.LINKED_ACCOUNT_COOKIE_SECRET);
-      const atToken = deriveAtToken({ cookie, expiresAt });
+      const atToken = await deriveAtToken({ cookie, accountId: linkedAccount.accountId });
       const now = new Date();
 
       await ForwarderLinkedAccount.updateOne(

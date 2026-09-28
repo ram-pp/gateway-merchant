@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
-import { Badge, Button, Card, EmptyState, Modal, Select, Toast } from '../components/ui';
+import { Badge, Button, Card, EmptyState, Input, Modal, Select, Toast } from '../components/ui';
 
 const PAGE_SIZE = 20;
 
 export default function Payments() {
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
   const [toast, setToast] = useState(null);
   const [updatePayment, setUpdatePayment] = useState(null);
@@ -16,16 +19,42 @@ export default function Payments() {
   const load = () => {
     const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
     if (status) params.set('status', status);
-    api.get(`/api/merchant/payments?${params.toString()}`).then(setData).catch(() => setData({ data: [] }));
+    if (fromDate) params.set('fromDate', fromDate);
+    if (toDate) params.set('toDate', toDate);
+    setLoading(true);
+    api
+      .get(`/api/merchant/payments?${params.toString()}`)
+      .then(setData)
+      .catch(() => setData({ data: [] }))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, page]);
+  }, [status, fromDate, toDate, page]);
 
   const handleStatusChange = (e) => {
     setStatus(e.target.value);
+    setPage(1);
+  };
+
+  const handleFromDateChange = (e) => {
+    setFromDate(e.target.value);
+    setPage(1);
+  };
+
+  const handleToDateChange = (e) => {
+    setToDate(e.target.value);
+    setPage(1);
+  };
+
+  const hasFilters = Boolean(status || fromDate || toDate);
+
+  const clearFilters = () => {
+    setStatus('');
+    setFromDate('');
+    setToDate('');
     setPage(1);
   };
 
@@ -80,78 +109,111 @@ export default function Payments() {
     <div className="space-y-6">
       <Toast {...(toast || {})} onClose={() => setToast(null)} />
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-slate-800">Payments</h1>
-        <Select value={status} onChange={handleStatusChange} className="w-40">
-          <option value="">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="paid">Paid</option>
-          <option value="expired">Expired</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="failed">Failed</option>
-        </Select>
       </div>
 
+      <Card className="p-4">
+        <div className="flex items-end gap-3 flex-wrap">
+          <Select label="Status" value={status} onChange={handleStatusChange} className="w-40">
+            <option value="">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="paid">Paid</option>
+            <option value="expired">Expired</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="failed">Failed</option>
+          </Select>
+          <Input
+            label="From date"
+            type="date"
+            value={fromDate}
+            max={toDate || undefined}
+            onChange={handleFromDateChange}
+            className="w-40"
+          />
+          <Input
+            label="To date"
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            onChange={handleToDateChange}
+            className="w-40"
+          />
+          {hasFilters && (
+            <Button variant="secondary" className="text-sm" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          )}
+        </div>
+      </Card>
+
       <Card className="p-0 overflow-hidden">
-        {!data?.data?.length ? (
-          <EmptyState title="No payments yet" description="Take your first payment from the POS page." />
+        {loading && !data ? (
+          <div className="py-12 text-center text-slate-400 text-sm">Loading payments…</div>
+        ) : !data?.data?.length ? (
+          <EmptyState
+            title="No payments found"
+            description={hasFilters ? 'Try adjusting or clearing your filters.' : 'Take your first payment from the POS page.'}
+          />
         ) : (
           <>
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-left">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Order ID</th>
-                  <th className="px-4 py-2 font-medium">Date</th>
-                  <th className="px-4 py-2 font-medium">Customer Mobile</th>
-                  <th className="px-4 py-2 font-medium">Transaction Id</th>
-                  <th className="px-4 py-2 font-medium">UTR Number</th>
-                  <th className="px-4 py-2 font-medium">Amount</th>
-                  <th className="px-4 py-2 font-medium">Payment Status</th>
-                  <th className="px-4 py-2 font-medium">View</th>
-                  <th className="px-4 py-2 font-medium">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.data.map((p) => (
-                  <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50 align-top">
-                    <td className="px-4 py-3">
-                      <span className="font-medium text-slate-700">{p.id}</span>
-                      {p.merchantOrderRef && <div className="text-xs text-slate-400 mt-1">{p.merchantOrderRef}</div>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-400">{new Date(p.createdAt).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-slate-500">{p.customerMobile || '—'}</td>
-                    <td className="px-4 py-3 text-slate-500">{p.transactionId || '—'}</td>
-                    <td className="px-4 py-3 text-slate-500">{p.utr || '—'}</td>
-                    <td className="px-4 py-3 font-medium">₹{p.amount}</td>
-                    <td className="px-4 py-3">
-                      <Badge status={p.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => setViewPayment(p)}
-                        className="text-brand-700 font-medium hover:underline"
-                      >
-                        View
-                      </button>
-                    </td>
-                    <td className="px-4 py-3">
-                      {p.status === 'pending' || p.status === 'expired' ? (
-                        <Button
-                          variant="secondary"
-                          className="text-xs px-3 py-1.5 !rounded-full"
-                          onClick={() => setUpdatePayment(p)}
-                        >
-                          Update
-                        </Button>
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </td>
+            <div className={`overflow-x-auto transition-opacity ${loading ? 'opacity-50' : ''}`}>
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-slate-500 text-left">
+                  <tr>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Order ID</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Date</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Customer Mobile</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Transaction Id</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">UTR Number</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Amount</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Payment Status</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">View</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.data.map((p) => (
+                    <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50 align-top">
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-slate-700">{p.id}</span>
+                        {p.merchantOrderRef && <div className="text-xs text-slate-400 mt-1">{p.merchantOrderRef}</div>}
+                      </td>
+                      <td className="px-4 py-3 text-slate-400 whitespace-nowrap">{new Date(p.createdAt).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-slate-500">{p.customerMobile || '—'}</td>
+                      <td className="px-4 py-3 text-slate-500">{p.transactionId || '—'}</td>
+                      <td className="px-4 py-3 text-slate-500">{p.utr || '—'}</td>
+                      <td className="px-4 py-3 font-medium whitespace-nowrap">₹{p.amount}</td>
+                      <td className="px-4 py-3">
+                        <Badge status={p.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setViewPayment(p)}
+                          className="text-brand-700 font-medium hover:underline"
+                        >
+                          View
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        {p.status === 'pending' || p.status === 'expired' ? (
+                          <Button
+                            variant="secondary"
+                            className="text-xs px-3 py-1.5 !rounded-full"
+                            onClick={() => setUpdatePayment(p)}
+                          >
+                            Update
+                          </Button>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 text-sm text-slate-500">
               <span>

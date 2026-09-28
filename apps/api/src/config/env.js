@@ -58,6 +58,11 @@ const env = {
     'UPSTREAM_USER_AGENT',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15',
   ),
+  // HTML page carrying the inline `window.age_data_token_at` script variable that
+  // the at= token is extracted from (see utils/atToken.util.js).
+  TXX_ORIGIN: required('TXX_ORIGIN', 'https://txx.fasspay.co.in'),
+  TXX_URL_PATH: required('TXX_URL_PATH', '/'),
+  TXX_QUERY_PARAM: required('TXX_QUERY_PARAM', 'accountId'),
 };
 
 module.exports = env;

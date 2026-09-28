@@ -5,6 +5,7 @@ const { Payment, MerchantUpiAccount } = require('../models');
 const { createPayment, buildCreateResponse, serializePayment } = require('../services/payment.service');
 const { enqueueWebhook } = require('../services/webhookDelivery.service');
 const { publish } = require('../utils/sse.hub');
+const { istDayStart, parseIstDateStart, parseIstDateEnd } = require('../utils/date.util');
 const { Merchant } = require('../models');
 
 const create = asyncHandler(async (req, res) => {
@@ -14,10 +15,18 @@ const create = asyncHandler(async (req, res) => {
 });
 
 const list = asyncHandler(async (req, res) => {
-  const { status, page = 1, limit = 20, q } = req.query;
+  const { status, page = 1, limit = 20, q, fromDate, toDate } = req.query;
   const filter = { merchantId: req.merchant._id };
   if (status) filter.status = status;
   if (q) filter.$or = [{ merchantOrderRef: new RegExp(q, 'i') }, { publicId: new RegExp(q, 'i') }];
+  if (fromDate || toDate) {
+    filter.createdAt = {};
+    // Date-only values (from the dashboard's date filter) are IST calendar
+    // days, not UTC ones — parse them against the fixed IST offset so the
+    // range lines up with what the merchant actually picked.
+    if (fromDate) filter.createdAt.$gte = parseIstDateStart(fromDate);
+    if (toDate) filter.createdAt.$lte = parseIstDateEnd(toDate);
+  }
 
   const skip = (Number(page) - 1) * Number(limit);
   const [payments, total] = await Promise.all([
@@ -34,6 +43,36 @@ const list = asyncHandler(async (req, res) => {
     page: Number(page),
     pages: Math.ceil(total / Number(limit)),
     data: payments.map((p) => serializePayment(p, accountsById.get(String(p.upiAccountId)))),
+  });
+});
+
+// Dashboard summary. Computed server-side via aggregation rather than by
+// fetching a page of payments and reducing client-side, so it stays correct
+// regardless of how many payments the merchant does in a day (a capped
+// fetch would silently undercount on busy days). "Today" is an IST calendar
+// day (see date.util) — the API server itself may run in any timezone.
+// Money-received figures key off paidAt, not createdAt: a payment created
+// yesterday but confirmed today is today's revenue, not yesterday's.
+const stats = asyncHandler(async (req, res) => {
+  const merchantId = req.merchant._id;
+  const startOfDay = istDayStart();
+
+  const [paymentsToday, pendingCount, paidTodayAgg] = await Promise.all([
+    Payment.countDocuments({ merchantId, createdAt: { $gte: startOfDay } }),
+    Payment.countDocuments({ merchantId, status: 'pending' }),
+    Payment.aggregate([
+      { $match: { merchantId, status: 'paid', paidAt: { $gte: startOfDay } } },
+      { $group: { _id: null, count: { $sum: 1 }, volume: { $sum: '$amount' } } },
+    ]),
+  ]);
+
+  const paidToday = paidTodayAgg[0] || { count: 0, volume: 0 };
+
+  res.json({
+    paymentsToday,
+    pendingCount,
+    paidTodayCount: paidToday.count,
+    paidTodayVolume: paidToday.volume,
   });
 });
 
@@ -94,4 +133,4 @@ const confirm = asyncHandler(async (req, res) => {
   res.json(serialized);
 });
 
-module.exports = { create, list, getOne, cancel, confirm };
+module.exports = { create, list, stats, getOne, cancel, confirm };

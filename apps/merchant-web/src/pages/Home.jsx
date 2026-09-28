@@ -4,20 +4,18 @@ import { api } from '../api';
 import { Card } from '../components/ui';
 
 export default function Home() {
-  const [payments, setPayments] = useState(null);
+  const [stats, setStats] = useState(null);
   const [forwarder, setForwarder] = useState(null);
 
   useEffect(() => {
-    api.get('/api/merchant/payments?limit=100').then((d) => setPayments(d.data)).catch(() => setPayments([]));
+    api.get('/api/merchant/payments/stats').then(setStats).catch(() => setStats(null));
     api.get('/api/merchant/forwarder/status').then(setForwarder).catch(() => setForwarder(null));
   }, []);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todays = (payments || []).filter((p) => new Date(p.createdAt) >= today);
-  const paidToday = todays.filter((p) => p.status === 'paid');
-  const pendingCount = (payments || []).filter((p) => p.status === 'pending').length;
-  const volumeToday = paidToday.reduce((sum, p) => sum + p.amount, 0);
+  const paymentsToday = stats?.paymentsToday ?? 0;
+  const paidTodayCount = stats?.paidTodayCount ?? 0;
+  const pendingCount = stats?.pendingCount ?? 0;
+  const volumeToday = stats?.paidTodayVolume ?? 0;
   const activeDevice = forwarder?.devices?.find((d) => d.isActive);
 
   return (
@@ -27,8 +25,8 @@ export default function Home() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <p className="text-sm text-slate-500">Today's volume</p>
-          <p className="text-2xl font-bold text-slate-800 mt-1">₹{volumeToday.toFixed(2)}</p>
-          <p className="text-xs text-slate-400 mt-1">{paidToday.length} paid</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">₹{Number(volumeToday).toFixed(2)}</p>
+          <p className="text-xs text-slate-400 mt-1">{paidTodayCount} paid</p>
         </Card>
         <Card>
           <p className="text-sm text-slate-500">Pending payments</p>
@@ -36,7 +34,7 @@ export default function Home() {
         </Card>
         <Card>
           <p className="text-sm text-slate-500">Payments today</p>
-          <p className="text-2xl font-bold text-slate-800 mt-1">{todays.length}</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">{paymentsToday}</p>
         </Card>
         <Card>
           <p className="text-sm text-slate-500">Forwarder</p>
