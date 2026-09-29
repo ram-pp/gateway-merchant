@@ -58,7 +58,6 @@ const merchantSchema = new mongoose.Schema(
           showNote: { type: Boolean, default: true },
           showQr: { type: Boolean, default: true },
           showPayButtons: { type: Boolean, default: true },
-          showPoweredBy: { type: Boolean, default: false },
         },
         copy: {
           title: { type: String, default: 'Pay now' },

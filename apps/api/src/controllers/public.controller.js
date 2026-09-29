@@ -38,7 +38,6 @@ const DEFAULT_PAY_PAGE_THEME = {
     showNote: true,
     showQr: true,
     showPayButtons: true,
-    showPoweredBy: false,
   },
   copy: {
     title: 'Pay now',

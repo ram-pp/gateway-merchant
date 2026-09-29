@@ -37,7 +37,6 @@ const DEFAULT_PAY_PAGE_THEME = {
     showNote: true,
     showQr: true,
     showPayButtons: true,
-    showPoweredBy: false,
   },
   copy: {
     title: 'Pay now',
@@ -288,11 +287,18 @@ export default function PublicPay() {
               </div>
             )}
 
-            {theme.layout.showPoweredBy && (
-              <p className="mt-4 text-[11px]" style={{ color: theme.brand.secondaryText }}>
-                Powered by merchant-pay
-              </p>
-            )}
+            <p className="mt-4 text-[11px]" style={{ color: theme.brand.secondaryText }}>
+              🔒 Secured by{' '}
+              <a
+                href="https://usdthub.net/"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium underline decoration-dotted underline-offset-2"
+                style={{ color: theme.brand.secondaryText }}
+              >
+                USDTHub
+              </a>
+            </p>
           </>
         )}
       </div>

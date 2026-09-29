@@ -24,7 +24,6 @@ const DEFAULT_PAY_PAGE_THEME = {
     showNote: true,
     showQr: true,
     showPayButtons: true,
-    showPoweredBy: false,
   },
   copy: {
     title: 'Pay now',
@@ -380,14 +379,6 @@ export default function Settings() {
               onChange={(e) => updateThemeField('layout.showPayButtons', e.target.checked)}
             />
             Show action buttons
-          </label>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={form.payPageTheme.layout.showPoweredBy}
-              onChange={(e) => updateThemeField('layout.showPoweredBy', e.target.checked)}
-            />
-            Show powered by label
           </label>
         </div>
 
