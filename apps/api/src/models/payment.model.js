@@ -29,6 +29,9 @@ const paymentSchema = new mongoose.Schema(
     confirmationSource: { type: String, enum: CONFIRMATION_SOURCES, default: null },
     matchReason: { type: String, default: null },
     forwarderLogId: { type: mongoose.Schema.Types.ObjectId, ref: 'ForwarderLog', default: null },
+    // Upstream transactionId that confirmed this payment via the forwarder
+    // account-poll worker — see the unique index below.
+    forwarderTransactionId: { type: String, default: null },
 
     cancelledAt: { type: Date, default: null },
     expiresAt: { type: Date, required: true, index: true },
@@ -54,6 +57,16 @@ paymentSchema.index(
 paymentSchema.index(
   { merchantId: 1, idempotencyKey: 1 },
   { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } },
+);
+
+// DB-level guarantee that one upstream transaction can only ever confirm one
+// payment — without this, a transaction still present in the account's
+// "recent transactions" list across multiple poll ticks (or re-fetched for a
+// later, unrelated same-amount payment) could silently confirm several
+// payments with the same real-world credit.
+paymentSchema.index(
+  { forwarderTransactionId: 1 },
+  { unique: true, partialFilterExpression: { forwarderTransactionId: { $type: 'string' } } },
 );
 
 module.exports = mongoose.model('Payment', paymentSchema);

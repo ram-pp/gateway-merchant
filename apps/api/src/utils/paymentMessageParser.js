@@ -23,6 +23,17 @@ const LAST4_RE = /\b(?:a\/?c|account)[a-z\s]*?(?:no\.?|number)?[a-z\s]*?[x*]{2,}
 const DATE_RE = /\b(\d{1,2})[-\/\s]([A-Za-z]{3,9}|\d{1,2})[-\/\s](\d{2,4})\b/;
 const TIME_RE = /\b(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\b/i;
 
+// Bank/UPI SMS and notifications are always in India Standard Time — never the
+// server process's own timezone. extractMessageTime must anchor and construct
+// dates against this fixed offset rather than local Date getters/constructor,
+// which silently use whatever TZ the Node process happens to run under (e.g.
+// UTC on most cloud/container hosts). Using local time there previously made
+// every transaction between IST midnight and ~5:30am resolve to the wrong
+// *day* — the UTC calendar date is still on the previous day during that
+// window — producing a messageTime far in the past that predated every
+// pending payment and made the matcher reject genuine credit events.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
 const MONTHS = {
   jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
   jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
@@ -57,10 +68,13 @@ function extractMessageTime(text, eventTime) {
   if (meridiem === 'am' && hour === 12) hour = 0;
   if (hour > 23 || minute > 59 || second > 59) return null;
 
-  const anchor = eventTime instanceof Date && !Number.isNaN(eventTime.getTime()) ? eventTime : new Date();
-  let year = anchor.getFullYear();
-  let month = anchor.getMonth();
-  let day = anchor.getDate();
+  const anchorMs = eventTime instanceof Date && !Number.isNaN(eventTime.getTime()) ? eventTime.getTime() : Date.now();
+  // Shift into IST before reading calendar fields, via the UTC getters —
+  // those are timezone-independent, unlike getFullYear/getMonth/getDate.
+  const anchorIst = new Date(anchorMs + IST_OFFSET_MS);
+  let year = anchorIst.getUTCFullYear();
+  let month = anchorIst.getUTCMonth();
+  let day = anchorIst.getUTCDate();
 
   const dateMatch = text.match(DATE_RE);
   if (dateMatch) {
@@ -75,7 +89,9 @@ function extractMessageTime(text, eventTime) {
     }
   }
 
-  const result = new Date(year, month, day, hour, minute, second);
+  // Build the IST wall-clock instant as UTC fields, then shift back out of
+  // IST — this never touches the process's local timezone.
+  const result = new Date(Date.UTC(year, month, day, hour, minute, second) - IST_OFFSET_MS);
   return Number.isNaN(result.getTime()) ? null : result;
 }
 

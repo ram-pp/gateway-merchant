@@ -7,13 +7,35 @@ const { enqueueWebhook } = require('./webhookDelivery.service');
 const { serializePayment } = require('./payment.service');
 
 /**
- * A fetched transaction confirms a payment only if its upstream timestamp
- * falls between the payment's creation (minus clock-skew tolerance) and now
- * (plus the same tolerance) — it must have happened around when the payment
- * was created, not some unrelated transaction that merely shares the amount.
+ * Every payment's UPI intent embeds a fresh, random transactionNote as its
+ * `tn`/`tr` (see payment.service.js) specifically so it can be traced back
+ * later. When the upstream transaction carries a non-empty description, it
+ * must echo that note back to count as a match — a non-empty description
+ * that doesn't is either a different payment's event or a generic app-level
+ * description (e.g. "Payment from PhonePe"), not proof of this one.
+ */
+function descriptionMatchesNote(tx, payment) {
+  const description = typeof tx.description === 'string' ? tx.description.trim() : '';
+  if (!description) return null; // nothing to compare — caller falls back to amount+time
+  return Boolean(payment.transactionNote) && description.toLowerCase().includes(payment.transactionNote.toLowerCase());
+}
+
+/**
+ * A fetched transaction confirms a payment if its description echoes back
+ * the payment's own embedded transactionNote (authoritative — no further
+ * check needed), or, when the transaction has no description to check,
+ * falls back to amount + rough timing: the transaction's upstream timestamp
+ * must fall between the payment's creation (minus clock-skew tolerance) and
+ * now (plus the same tolerance) — it must have happened around when the
+ * payment was created, not some unrelated transaction that merely shares the
+ * amount.
  */
 function transactionConfirmsPayment(tx, payment) {
   if (!amountsMatch(tx.amount, payment.amount)) return false;
+
+  const descriptionMatch = descriptionMatchesNote(tx, payment);
+  if (descriptionMatch !== null) return descriptionMatch;
+
   if (!tx.time) return true;
 
   const skewMs = env.FORWARDER_POLL_TIME_SKEW_MS;
@@ -25,6 +47,14 @@ function transactionConfirmsPayment(tx, payment) {
   return true;
 }
 
+/**
+ * Confirms a payment from a matched transaction. Returns false (without
+ * throwing) if the payment was no longer pending, or if this exact upstream
+ * transaction had already confirmed a *different* payment — the unique index
+ * on forwarderTransactionId is the authoritative guard against that; this
+ * just means two payments raced to claim the same transaction, and this one
+ * lost.
+ */
 async function confirmPaymentFromTransaction(payment, tx, linkedAccount) {
   const freshPayment = await Payment.findOne({ _id: payment._id, status: 'pending' });
   if (!freshPayment) return false;
@@ -33,8 +63,21 @@ async function confirmPaymentFromTransaction(payment, tx, linkedAccount) {
   freshPayment.paidAt = new Date();
   freshPayment.utr = tx.referenceId || freshPayment.utr;
   freshPayment.confirmationSource = 'forwarder_poll';
-  freshPayment.matchReason = `Forwarder account poll: amount ₹${payment.amount} matched transaction ${tx.transactionId} on linked account ${linkedAccount.accountId}.`;
-  await freshPayment.save();
+  freshPayment.forwarderTransactionId = tx.transactionId;
+  freshPayment.matchReason = descriptionMatchesNote(tx, payment)
+    ? `Forwarder account poll: description echoed note "${payment.transactionNote}" on transaction ${tx.transactionId} (linked account ${linkedAccount.accountId}).`
+    : `Forwarder account poll: amount ₹${payment.amount} matched transaction ${tx.transactionId} on linked account ${linkedAccount.accountId}.`;
+  try {
+    await freshPayment.save();
+  } catch (error) {
+    if (error.code === 11000) {
+      console.warn(
+        `[forwarder-poll] transaction ${tx.transactionId} already confirmed a different payment; skipping payment ${payment._id}.`,
+      );
+      return false;
+    }
+    throw error;
+  }
 
   try {
     const merchant = await Merchant.findById(freshPayment.merchantId).select('+webhookSecret');
@@ -115,6 +158,14 @@ async function pollDuePayments() {
     return transactionsByLinkedAccountId.get(key);
   }
 
+  // Load transactionIds already spent on some payment (any status, any
+  // tick) so this tick never retries one the unique index would reject
+  // anyway, and tracks ones it spends itself so two due payments in the same
+  // tick can't both claim the same transaction before either save lands.
+  const usedTransactionIds = new Set(
+    await Payment.distinct('forwarderTransactionId', { forwarderTransactionId: { $ne: null } }),
+  );
+
   let matched = 0;
   for (const payment of duePayments) {
     const device = deviceByUpiAccountId.get(String(payment.upiAccountId));
@@ -122,8 +173,13 @@ async function pollDuePayments() {
 
     for (const linkedAccount of linkedAccountsForDevice) {
       const transactions = await getTransactions(linkedAccount);
-      const hit = transactions.find((tx) => transactionConfirmsPayment(tx, payment));
-      if (hit && (await confirmPaymentFromTransaction(payment, hit, linkedAccount))) {
+      const hit = transactions.find(
+        (tx) => !usedTransactionIds.has(tx.transactionId) && transactionConfirmsPayment(tx, payment),
+      );
+      if (!hit) continue;
+
+      usedTransactionIds.add(hit.transactionId);
+      if (await confirmPaymentFromTransaction(payment, hit, linkedAccount)) {
         matched += 1;
         break;
       }
